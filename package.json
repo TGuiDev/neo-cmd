@@ -1,6 +1,6 @@
 {
   "name": "neo-cmd",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Neo CMD - terminal com abas estilo navegador e Claude Code integrado",
   "main": "src/main.js",
   "scripts": {
