@@ -33,7 +33,20 @@ Cada aba mostra o nome da pasta em que está. Arraste para reordenar, feche com 
 
 Abra com o botão **✦ Claude** ou `Ctrl+Shift+B`. Cada aba tem a sua própria sessão do Claude, iniciada **na pasta atual daquela aba**. A largura se ajusta arrastando a divisória.
 
-> As imagens acima são capturas reais do app. Na primeira execução, o Claude Code pede para escolher um tema e fazer login, como em qualquer instalação nova.
+O Claude Code abre direto na sidebar, sem mostrar um shell chamando o comando. Na primeira execução ele pede para escolher um tema e fazer login, como em qualquer instalação nova.
+
+### Temas e barra de status
+
+<p align="center">
+  <img src="docs/images/theme-dracula.png" alt="Tema Drácula, com a branch do Git na barra de status" width="49%" />
+  <img src="docs/images/theme-claro.png" alt="Tema Claro" width="49%" />
+</p>
+
+Quatro temas (Neo Escuro, Meia-noite, Drácula e Claro), trocados pelo menu **⌄**. A barra de status mostra o shell, a pasta atual e a branch do Git.
+
+<p align="center"><img src="docs/images/menu.png" alt="Menu de novas abas, temas e tamanho da fonte" width="700" /></p>
+
+> Todas as imagens são capturas reais do app, feitas no Linux. No Windows, o menu lista cmd, PowerShell e pwsh no lugar de "Shell padrão".
 
 ## Recursos
 
@@ -49,6 +62,8 @@ Abra com o botão **✦ Claude** ou `Ctrl+Shift+B`. Cada aba tem a sua própria 
 | Sidebar do Claude | `Ctrl+Shift+B` ou botão **✦ Claude** |
 | Aba dedicada do Claude | Menu **▾** → *Nova aba do Claude* |
 | Escolher shell | Menu **▾** (cmd, PowerShell, pwsh); botão direito num item o define como padrão |
+| Tema | Menu **⌄** → Tema (fica salvo) |
+| Tamanho da fonte | `Ctrl +` / `Ctrl -` / `Ctrl 0` |
 | Copiar / colar | `Ctrl+C` (com seleção) · `Ctrl+Shift+C/V` · botão direito |
 
 Detalhes completos em [docs/USO.md](docs/USO.md).

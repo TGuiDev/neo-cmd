@@ -14,6 +14,10 @@ Programas empacotados com Electron e que abrem terminais às vezes geram falsos 
 - Rode `where claude` no cmd. O caminho deve apontar para a pasta do app.
 - Se o problema persistir, abra uma issue com o resultado do comando.
 
+## Apareceu o texto de versão do Windows ou do Clink ao abrir uma aba
+
+O app esconde esse texto no cmd, mas isso depende de o prompt chegar logo. Se o seu cmd tiver um prompt que remove a sequência de pasta atual (alguns temas do Clink fazem isso), o texto é exibido depois de 2,5 s. Nesse caso, abra uma issue contando qual extensão você usa. Para desativar o aviso de atualização do Clink, rode `clink set clink.autoupdate off`.
+
 ## O Claude da sidebar fica numa tela de login ou de tema
 
 É a primeira execução. Siga as instruções na própria sidebar. Isso só acontece uma vez.
@@ -28,7 +32,7 @@ O download do Electron vem do GitHub. Em redes com proxy ou firewall, configure 
 
 ## O atalho não faz o que eu esperava no meu programa
 
-`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, `Ctrl+1…9` e `Ctrl+Shift+B` são reservados pelo app. Veja [USO.md](USO.md#atalhos-que-o-app-reserva).
+`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, `Ctrl+1…9`, `Ctrl +/-/0` e `Ctrl+Shift+B` são reservados pelo app. Veja [USO.md](USO.md#atalhos-que-o-app-reserva).
 
 ## Reportar um problema
 

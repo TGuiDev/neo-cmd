@@ -1,6 +1,6 @@
 {
   "name": "neo-cmd",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Neo CMD - terminal com abas estilo navegador e Claude Code integrado",
   "main": "src/main.js",
   "scripts": {
@@ -32,7 +32,8 @@
       "!node_modules/@anthropic-ai/claude-code-linux*/**",
       "!node_modules/@lydell/node-pty-linux*/**",
       "!node_modules/electron/**",
-      "!node_modules/electron-builder/**"
+      "!node_modules/electron-builder/**",
+      "!node_modules/@anthropic-ai/claude-code/bin/**"
     ],
     "asarUnpack": [
       "node_modules/@lydell/**",
@@ -66,8 +67,13 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
+      "allowToChangeInstallationDirectory": true,
+      "differentialPackage": false
+    },
+    "electronLanguages": [
+      "pt-BR",
+      "en-US"
+    ]
   },
   "author": "TGuiDev"
 }

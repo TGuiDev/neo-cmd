@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="neo">
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
@@ -9,29 +9,46 @@
 </head>
 <body>
   <header id="titlebar">
+    <div id="brand" title="Neo CMD">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d="M6 7.5 11.5 12 6 16.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="13" y="15" width="6" height="2.4" rx="1.2" fill="#fff"/>
+      </svg>
+    </div>
     <div id="tabs" role="tablist"></div>
     <button id="new-tab" class="icon-btn" title="Nova aba (Ctrl+T)">+</button>
-    <button id="shell-menu-btn" class="icon-btn small" title="Escolher shell">▾</button>
+    <button id="shell-menu-btn" class="icon-btn small" title="Shells e temas">⌄</button>
     <div id="drag-fill"></div>
-    <button id="toggle-claude" class="claude-btn" title="Claude Code (Ctrl+Shift+B)">✦ Claude</button>
+    <button id="toggle-claude" class="claude-btn" title="Claude Code (Ctrl+Shift+B)"><span class="spark">✦</span> Claude</button>
     <div id="window-controls-space"></div>
   </header>
 
   <div id="shell-menu" class="menu hidden"></div>
 
   <main id="workspace">
-    <section id="terminals"></section>
-    <div id="splitter" class="hidden"></div>
-    <aside id="sidebar" class="hidden">
+    <section id="terminals" class="card"></section>
+    <div id="splitter" class="hidden"><i></i></div>
+    <aside id="sidebar" class="card hidden">
       <div id="sidebar-head">
-        <span class="title">✦ Claude Code</span>
+        <span class="dot"></span>
+        <span class="title">Claude Code</span>
         <span id="sidebar-cwd" title=""></span>
         <button id="claude-restart" class="icon-btn small" title="Reiniciar o Claude nesta aba">↻</button>
-        <button id="claude-close" class="icon-btn small" title="Fechar sidebar">✕</button>
+        <button id="claude-close" class="icon-btn small" title="Fechar (Ctrl+Shift+B)">✕</button>
       </div>
       <div id="claude-stack"></div>
     </aside>
   </main>
+
+  <footer id="statusbar">
+    <span id="st-shell" class="chip"></span>
+    <span id="st-cwd"></span>
+    <span id="st-git" class="chip git hidden"></span>
+    <span class="spacer"></span>
+    <span id="st-zoom" class="muted"></span>
+    <span id="st-tabs" class="muted"></span>
+    <span class="muted">Ctrl+T nova aba · Ctrl+Shift+B Claude</span>
+  </footer>
 
   <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>

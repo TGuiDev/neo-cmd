@@ -34,7 +34,16 @@ Cria o instalador `Neo CMD Setup <versão>.exe`.
 > npm install --no-save --force --os=win32 --cpu=x64 @lydell/node-pty-win32-x64 @anthropic-ai/claude-code-win32-x64
 > ```
 
-Os arquivos de `dist/` têm mais de 300 MB (o app inclui o Chromium e o Claude Code) e **não são versionados** no Git.
+Os arquivos de `dist/` têm centenas de MB (o app inclui o Chromium e o Claude Code, que sozinho tem uns 350 MB) e **não são versionados** no Git.
+
+### Por que o build demora
+
+Quase todo o tempo vai para compactar o app (mais de 600 MB antes de compactar): o `.exe` portátil e o instalador usam compressão LZMA, que é lenta, e cada formato compacta tudo de novo. O que já foi feito para reduzir:
+
+- o executável do Claude Code entrava duas vezes no pacote e agora entra uma só (o app ficou 40% menor);
+- só os idiomas pt-BR e en-US do Chromium são incluídos;
+- o workflow gera por padrão só o portátil e o zip; o instalador é opcional (campo *installer*);
+- o download do Electron fica em cache entre execuções.
 
 ## Publicar um Release (automático)
 
@@ -50,7 +59,7 @@ git push origin v0.1.0
 
 3. Acompanhe a execução na aba **Actions**. Ao terminar, o Release aparece em **Releases** com o `.exe` portátil, o instalador e o zip.
 
-Também é possível rodar o workflow manualmente (**Actions → Build (Windows) → Run workflow**). Se preencher o campo *release_tag* (ex.: `v0.1.1`), o Release é criado com essa tag; se deixar em branco, os arquivos ficam como *artifact* da execução.
+Também é possível rodar o workflow manualmente (**Actions → Build (Windows) → Run workflow**). Se preencher o campo *release_tag* (ex.: `v0.1.2`), o Release é criado com essa tag; se deixar em branco, os arquivos ficam como *artifact* da execução.
 
 ## Observações
 
