@@ -70,9 +70,9 @@ Detalhes completos em [docs/USO.md](docs/USO.md).
 
 ## Instalação
 
-### Opção 1 — Baixar o executável
+### Opção 1 — Instalador (recomendado)
 
-Baixe o `NeoCMD-portable.exe` na página de [**Releases**](../../releases) e dê dois cliques. Não precisa instalar nada.
+Baixe o `NeoCMD-Setup-<versão>.exe` na página de [**Releases**](../../releases) e execute. A instalação é só para o seu usuário (não pede administrador), cria atalhos no menu Iniciar e na área de trabalho e tem desinstalador.
 
 > O executável não é assinado digitalmente, então o Windows SmartScreen pode avisar "editor desconhecido". Clique em **Mais informações → Executar assim mesmo**.
 
@@ -90,8 +90,7 @@ npm start
 ### Gerar o seu próprio executável
 
 ```bash
-npm run dist            # executável portátil + zip
-npm run dist:installer  # instalador (precisa ser gerado no Windows)
+npm run dist   # instalador em dist/ (gere no Windows)
 ```
 
 Mais detalhes em [docs/COMPILAR.md](docs/COMPILAR.md).

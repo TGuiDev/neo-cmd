@@ -5,8 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win --x64 portable zip",
-    "dist:installer": "electron-builder --win --x64 nsis"
+    "dist": "electron-builder --win --x64 nsis"
   },
   "license": "MIT",
   "dependencies": {
@@ -48,13 +47,7 @@
     "win": {
       "target": [
         {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "zip",
+          "target": "nsis",
           "arch": [
             "x64"
           ]
@@ -62,13 +55,15 @@
       ],
       "signAndEditExecutable": false
     },
-    "portable": {
-      "artifactName": "NeoCMD-portable.exe"
-    },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "differentialPackage": false
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Neo CMD",
+      "differentialPackage": false,
+      "artifactName": "NeoCMD-Setup-${version}.exe"
     },
     "electronLanguages": [
       "pt-BR",
