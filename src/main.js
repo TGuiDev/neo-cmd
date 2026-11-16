@@ -14,6 +14,7 @@ function binDirs() {
   return [
     path.join(app.getAppPath(), 'node_modules', '.bin'),
     path.join(root, 'node_modules', '.bin'),
+    path.join(process.resourcesPath || '', 'bin'), // claude.cmd quando empacotado
   ].filter((d) => fs.existsSync(d));
 }
 

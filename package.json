@@ -18,5 +18,50 @@
   "devDependencies": {
     "electron": "^45.3.3",
     "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "dev.tgui.neocmd",
+    "productName": "Neo CMD",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**",
+      "node_modules/**",
+      "!node_modules/@anthropic-ai/claude-code-linux*/**",
+      "!node_modules/@lydell/node-pty-linux*/**",
+      "!node_modules/electron/**",
+      "!node_modules/electron-builder/**"
+    ],
+    "asarUnpack": [
+      "node_modules/@lydell/**",
+      "node_modules/@anthropic-ai/**"
+    ],
+    "extraResources": [
+      {
+        "from": "build/bin",
+        "to": "bin"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "NeoCMD-portable.exe"
+    }
   }
 }
