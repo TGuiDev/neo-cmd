@@ -50,7 +50,7 @@ git push origin v0.1.0
 
 3. Acompanhe a execução na aba **Actions**. Ao terminar, o Release aparece em **Releases** com o `.exe` portátil, o instalador e o zip.
 
-Também é possível rodar o workflow manualmente (**Actions → Build (Windows) → Run workflow**); nesse caso os arquivos ficam como *artifact* da execução, sem criar Release.
+Também é possível rodar o workflow manualmente (**Actions → Build (Windows) → Run workflow**). Se preencher o campo *release_tag* (ex.: `v0.1.1`), o Release é criado com essa tag; se deixar em branco, os arquivos ficam como *artifact* da execução.
 
 ## Observações
 
