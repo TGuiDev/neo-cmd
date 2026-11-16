@@ -5,7 +5,8 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win --x64 portable zip",
+    "dist:installer": "electron-builder --win --x64 nsis"
   },
   "license": "MIT",
   "dependencies": {
@@ -62,6 +63,11 @@
     },
     "portable": {
       "artifactName": "NeoCMD-portable.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
-  }
+  },
+  "author": "TGuiDev"
 }
