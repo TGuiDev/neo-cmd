@@ -35,13 +35,12 @@ jobs:
         run: npm install --no-save @lydell/node-pty-win32-x64 @anthropic-ai/claude-code-win32-x64
       - name: Gerar o instalador
         run: npx electron-builder --win nsis --x64 --publish never
-      - name: Guardar como artifact
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') && inputs.release_tag == '' }}
+      - name: Guardar o instalador como artifact
         uses: actions/upload-artifact@v4
         with:
-          name: neo-cmd-windows
-          path: |
-            dist/*.exe
+          name: neo-cmd-instalador
+          path: dist/*.exe
+          retention-days: 14
       - name: Publicar no Release
         if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
