@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>Neo CMD</title>
+  <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header id="titlebar">
+    <div id="tabs" role="tablist"></div>
+    <button id="new-tab" class="icon-btn" title="Nova aba (Ctrl+T)">+</button>
+    <button id="shell-menu-btn" class="icon-btn small" title="Escolher shell">▾</button>
+    <div id="drag-fill"></div>
+    <button id="toggle-claude" class="claude-btn" title="Claude Code (Ctrl+Shift+B)">✦ Claude</button>
+    <div id="window-controls-space"></div>
+  </header>
+
+  <div id="shell-menu" class="menu hidden"></div>
+
+  <main id="workspace">
+    <section id="terminals"></section>
+    <div id="splitter" class="hidden"></div>
+    <aside id="sidebar" class="hidden">
+      <div id="sidebar-head">
+        <span class="title">✦ Claude Code</span>
+        <span id="sidebar-cwd" title=""></span>
+        <button id="claude-restart" class="icon-btn small" title="Reiniciar o Claude nesta aba">↻</button>
+        <button id="claude-close" class="icon-btn small" title="Fechar sidebar">✕</button>
+      </div>
+      <div id="claude-stack"></div>
+    </aside>
+  </main>
+
+  <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="../../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+:root {
+  --bg: #0f1117;
+  --bg-2: #161922;
+  --bg-3: #1d212d;
+  --line: #262b3a;
+  --text: #c9d1d9;
+  --muted: #7d8590;
+  --accent: #7c9cff;
+  --accent-2: #b38cff;
+  --danger: #ff6b81;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text);
+  font-family: "Segoe UI", system-ui, sans-serif; font-size: 13px; overflow: hidden; }
+button { font: inherit; color: inherit; cursor: pointer; }
+
+#titlebar {
+  display: flex; align-items: flex-end; height: 40px; padding-left: 8px;
+  background: var(--bg); -webkit-app-region: drag; user-select: none;
+}
+#tabs { display: flex; align-items: flex-end; height: 100%; min-width: 0; overflow: hidden; gap: 2px; }
+#titlebar button, .tab { -webkit-app-region: no-drag; }
+#drag-fill { flex: 1; min-width: 40px; height: 100%; }
+#window-controls-space { width: calc(100vw - env(titlebar-area-width, 100vw)); flex: none; }
+
+.tab {
+  position: relative; display: flex; align-items: center; gap: 8px;
+  height: 32px; min-width: 60px; max-width: 220px; flex: 1 1 200px;
+  padding: 0 8px 0 12px; border-radius: 8px 8px 0 0; background: transparent;
+  color: var(--muted); cursor: default; transition: background .12s;
+}
+.tab:hover { background: var(--bg-2); }
+.tab.active { background: var(--bg-2); color: var(--text); }
+.tab.active::after { content: ""; position: absolute; left: 10px; right: 10px; top: 0; height: 2px;
+  border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.tab.dragging { opacity: .4; }
+.tab.drop-before { box-shadow: inset 2px 0 0 var(--accent); }
+.tab.drop-after { box-shadow: inset -2px 0 0 var(--accent); }
+.tab .badge { font-size: 11px; color: var(--accent-2); }
+.tab .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab .close { width: 18px; height: 18px; line-height: 16px; text-align: center; border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted); padding: 0; }
+.tab .close:hover { background: var(--bg-3); color: var(--text); }
+
+.icon-btn { background: transparent; border: 0; border-radius: 6px; width: 28px; height: 28px;
+  margin: 0 0 2px 4px; color: var(--muted); font-size: 18px; line-height: 1; }
+.icon-btn.small { width: 22px; font-size: 13px; margin-left: 0; }
+.icon-btn:hover { background: var(--bg-3); color: var(--text); }
+.claude-btn { margin: 0 8px 4px 0; height: 26px; padding: 0 12px; border-radius: 13px;
+  border: 1px solid var(--line); background: var(--bg-2); color: var(--text); }
+.claude-btn:hover, .claude-btn.on { border-color: var(--accent); color: #fff;
+  background: linear-gradient(90deg, rgba(124,156,255,.25), rgba(179,140,255,.25)); }
+
+.menu { position: fixed; top: 38px; z-index: 50; min-width: 200px; padding: 6px; border-radius: 10px;
+  background: var(--bg-3); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.menu button { display: block; width: 100%; text-align: left; padding: 7px 10px; border: 0;
+  border-radius: 6px; background: transparent; }
+.menu button:hover { background: var(--bg-2); }
+.hidden { display: none !important; }
+
+#workspace { display: flex; height: calc(100% - 40px); background: var(--bg-2);
+  border-top: 1px solid var(--line); }
+#terminals, #claude-stack { position: relative; flex: 1; min-width: 0; }
+.term-pane { position: absolute; inset: 0; padding: 8px 4px 4px 12px; display: none; }
+.term-pane.active { display: block; }
+
+#splitter { width: 5px; cursor: col-resize; background: var(--line); flex: none; }
+#splitter:hover, #splitter.drag { background: var(--accent); }
+#sidebar { width: 460px; min-width: 280px; max-width: 80vw; display: flex; flex-direction: column;
+  background: var(--bg); }
+#sidebar-head { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--line); }
+#sidebar-head .title { font-weight: 600;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text;
+  color: transparent; }
+#sidebar-cwd { flex: 1; min-width: 0; color: var(--muted); font-size: 11px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: right; }
+.xterm-viewport { background-color: transparent !important; }
