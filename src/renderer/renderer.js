@@ -212,7 +212,9 @@
     if (owner.ptyId) { neo.kill(owner.ptyId); byPty.delete(owner.ptyId); }
     owner.ptyId = `${WIN_TAG}-${owner.id}.${owner.gen}`;
     const entry = { term, owner, hold: null };
-    if (isWin && kind === 'cmd') entry.hold = { buf: '', timer: setTimeout(() => release(entry, true), 2500) };
+    if ((isWin && kind === 'cmd') || (kind !== 'claude' && store.get('neo.debugHold', false))) {
+      entry.hold = { buf: '', timer: setTimeout(() => (entry.hold?.clink ? clinkRedraw(entry) : release(entry, true)), 2500) };
+    }
     byPty.set(owner.ptyId, entry);
     owner.startedAt = Date.now();
     neo.create({ id: owner.ptyId, kind, cwd, distro, cols: term.cols, rows: term.rows });
@@ -224,14 +226,33 @@
     const i = hd.buf.indexOf('\x1b]9;9;');
     entry.term.write(all || i < 0 ? hd.buf : hd.buf.slice(i));
   }
+  // Com o Clink: espera ele terminar de imprimir a abertura (logo, aviso de atualização), descarta tudo
+  // e pede ao Clink para limpar a tela (Ctrl+L). Ele redesenha o prompt no topo, sem espaço vazio antes.
+  function clinkRedraw(entry) {
+    const hd = entry.hold;
+    if (!hd) return;
+    clearTimeout(hd.timer); clearTimeout(hd.quiet);
+    entry.hold = null;
+    const cwds = [...hd.buf.matchAll(/\x1b\]9;9;([^\x07\x1b]*)/g)];
+    entry.term.reset();
+    if (cwds.length) entry.term.write(`\x1b]9;9;${cwds[cwds.length - 1][1]}\x1b\\`); // mantém a pasta atual
+    neo.write(entry.owner.ptyId, '\x0c');
+  }
   function feed(id, data) {
     const entry = byPty.get(id);
     if (!entry) return;
     entry.owner.onFirstData?.();
     if (!entry.hold) return entry.term.write(data);
-    entry.hold.buf += data;
-    if (entry.hold.buf.includes('\x1b]9;9;')) release(entry, false);
-    else if (entry.hold.buf.length > 200000) release(entry, true);
+    const hd = entry.hold;
+    hd.buf += data;
+    if (hd.clink || hd.buf.includes('\x1b]9;9999;clink')) {
+      hd.clink = true;
+      clearTimeout(hd.quiet);
+      hd.quiet = setTimeout(() => clinkRedraw(entry), 250); // 250 ms sem saída = Clink terminou a abertura
+      return;
+    }
+    if (hd.buf.includes('\x1b]9;9;')) release(entry, false);
+    else if (hd.buf.length > 200000) release(entry, true);
   }
 
   /* =================== abas =================== */

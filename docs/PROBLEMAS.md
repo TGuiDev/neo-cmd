@@ -16,7 +16,7 @@ Programas empacotados com Electron e que abrem terminais às vezes geram falsos 
 
 ## Apareceu o texto de versão do Windows ou do Clink ao abrir uma aba
 
-O app esconde esse texto no cmd até o primeiro prompt avisar a pasta atual (com o Clink, pelo script `neo-cmd.lua`). Se esse aviso não chegar em 2,5 s, o texto é exibido para não esconder nada por engano. Nesse caso, abra uma issue contando qual extensão ou tema você usa. Para desativar o aviso de atualização do Clink, rode `clink set clink.autoupdate off`.
+O app esconde esse texto no cmd. Com o Clink, o script `neo-cmd.lua` avisa o app; ele espera o Clink terminar de imprimir a abertura (logo, aviso de atualização) e manda `Ctrl+L`, o comando de limpar a tela do Clink, que redesenha o prompt no topo. Sem o Clink, o texto antes do primeiro prompt é descartado. Se nenhum aviso chegar em 2,5 s, o texto é exibido para não esconder nada por engano. Se você mudou o atalho `Ctrl+L` do Clink, a tela pode não ser limpa. Nesse caso, abra uma issue contando qual extensão ou tema você usa. Para desativar o aviso de atualização do Clink, rode `clink set clink.autoupdate off`.
 
 ## O Claude da sidebar fica numa tela de login ou de tema
 
