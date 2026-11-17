@@ -55,8 +55,9 @@ function buildEnv() {
   const env = { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor' };
   const key = Object.keys(env).find((k) => k.toLowerCase() === 'path') || 'PATH';
   env[key] = [...binDirs(), env[key] || ''].join(path.delimiter);
-  // cmd: informa o diretório atual ao terminal (OSC 9;9).
+  // Informa o diretório atual ao terminal (OSC 9;9) a cada prompt.
   if (isWin) env.PROMPT = '$E]9;9;$P$E\\$P$G';
+  else env.PROMPT_COMMAND = 'printf "\\033]9;9;%s\\033\\\\" "$PWD"';
   return env;
 }
 
@@ -104,6 +105,36 @@ ipcMain.handle('app:git-branch', (_e, cwd) => new Promise((resolve) => {
   execFile('git', ['-C', cwd, 'rev-parse', '--abbrev-ref', 'HEAD'],
     { timeout: 1500, windowsHide: true }, (err, out) => resolve(err ? '' : String(out).trim()));
 }));
+/* ---------- pastas (barra de endereço e página de nova aba) ---------- */
+const expand = (p) => (p === '~' || p.startsWith('~/') || p.startsWith('~\\') ? path.join(os.homedir(), p.slice(1)) : p);
+const isDir = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
+
+// Completa um caminho digitado: devolve a pasta exata (se existir) e subpastas que combinam.
+ipcMain.handle('fs:complete', (_e, cwd, input) => {
+  const raw = expand(String(input || '').trim());
+  const full = path.resolve(cwd && isDir(cwd) ? cwd : os.homedir(), raw || '.');
+  const endsWithSep = /[\\/]$/.test(raw);
+  const base = endsWithSep || isDir(full) && raw.endsWith('.') ? full : path.dirname(full);
+  const prefix = endsWithSep ? '' : path.basename(full).toLowerCase();
+  let items = [];
+  try {
+    items = fs.readdirSync(base, { withFileTypes: true })
+      .filter((d) => { try { return d.isDirectory() || (d.isSymbolicLink() && isDir(path.join(base, d.name))); } catch { return false; } })
+      .map((d) => d.name)
+      .filter((n) => n.toLowerCase().startsWith(prefix) && (prefix.startsWith('.') || !n.startsWith('.')))
+      .sort((a, b) => a.localeCompare(b))
+      .slice(0, 8)
+      .map((name) => ({ name, path: path.join(base, name) }));
+  } catch {}
+  return { exact: isDir(full) ? full : null, items };
+});
+ipcMain.handle('fs:parent', (_e, p) => { const d = path.dirname(p); return d === p ? null : d; });
+ipcMain.handle('fs:known', () => {
+  const h = os.homedir();
+  return [h, ...['Desktop', 'Documents', 'Downloads', 'Projects', 'projetos', 'source/repos'].map((n) => path.join(h, n))].filter(isDir);
+});
+ipcMain.handle('fs:isdir', (_e, p) => isDir(expand(p)));
+
 ipcMain.on('app:open-external', (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
 ipcMain.on('app:titlebar', (_e, color, symbolColor) => {
   try { win?.setTitleBarOverlay({ color, symbolColor, height: 44 }); } catch {}

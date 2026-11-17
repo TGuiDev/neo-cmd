@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <b>Um terminal para Windows com abas estilo navegador e o Claude Code embutido.</b><br/>
-  Chega de uma janela por vez: abra, arraste, feche e reabra abas como no Chrome.
+  <b>Um terminal para Windows que navega como o seu navegador.</b><br/>
+  Abas, barra de endereço, voltar e avançar, favoritos, página de nova aba e o Claude Code embutido.
 </p>
 
 <p align="center">
@@ -15,68 +15,78 @@
 
 ---
 
-## Por que existe
+## A ideia
 
-O Windows 10 não tem abas no `cmd`. O Neo CMD resolve isso e vai além: o **Claude Code** já vem dentro dele, tanto como comando em qualquer aba quanto numa **sidebar** ao lado do seu terminal.
+Você já sabe usar um navegador. O Neo CMD leva esse jeito de navegar para o terminal: cada aba é um terminal, a barra de endereço mostra onde você está, e voltar, avançar e favoritar funcionam como no Chrome. O cmd e o PowerShell continuam lá, de verdade; o Neo CMD só muda a forma de chegar até eles.
 
-## Veja funcionando
+## Página de nova aba
 
-### Abas como no navegador
+<p align="center"><img src="docs/images/ntp.png" alt="Página de nova aba com relógio, busca, favoritos e pastas mais visitadas" width="900" /></p>
 
-<p align="center"><img src="docs/images/tabs.png" alt="Várias abas, cada uma com o nome da sua pasta" width="900" /></p>
+Toda aba nova começa aqui, como no navegador: suas pastas **favoritas** e as **mais visitadas** em blocos, uma busca que entende pastas, comandos e perguntas, e atalhos para abrir com cmd, PowerShell ou o Claude. Clique num bloco e o terminal já abre naquela pasta, sem nenhum `cd` digitado.
 
-Cada aba mostra o nome da pasta em que está. Arraste para reordenar, feche com o botão do meio do mouse e reabra a última aba fechada com `Ctrl+Shift+T`.
+## Barra de endereço
 
-### Claude Code na sidebar
+<p align="center"><img src="docs/images/omnibox.png" alt="Barra de endereço sugerindo subpastas enquanto você digita" width="900" /></p>
+
+A pasta atual aparece como uma trilha clicável (`~ › projetos › api`): clique em qualquer parte para subir até ela. Clique na barra (ou `Ctrl+L`) e digite:
+
+| Você digita | O que acontece |
+|---|---|
+| um caminho (`C:\projetos`, `..\site`, `~\Downloads`) | vai até a pasta, com autocompletar de subpastas (`Tab` completa) |
+| um comando (`npm test`) | executa na aba atual (ou numa aba nova, se a atual estiver ocupada) |
+| `?` + pergunta (`?por que esse build falha`) | abre a sidebar e manda a pergunta para o Claude Code |
+| `>` + ação (`>tema`) | ações do app: temas, shells, fonte, favoritos |
+
+## Navegue como no navegador
+
+<p align="center"><img src="docs/images/browser.png" alt="Terminal com barra de endereço, botões de navegação, favoritos e branch do Git" width="900" /></p>
+
+- **Voltar, avançar e subir** (`Alt+←`, `Alt+→`, `Alt+↑`): cada aba guarda o histórico das pastas por onde passou.
+- **Favoritos** (`Ctrl+D` ou ★): as pastas favoritas ganham uma barra própria. Clique para ir, `Ctrl+clique` para abrir em nova aba, botão direito para remover.
+- **Abas que avisam**: enquanto um comando roda, o ícone da aba vira um indicador de carregamento; quando um comando termina numa aba em segundo plano, aparece um ponto, como uma notificação.
+- **Branch do Git** e **shell da aba** sempre visíveis na barra de endereço.
+- Abas que se arrastam, fecham com o botão do meio, renomeiam com duplo clique e reabrem com `Ctrl+Shift+T`.
+
+## Claude Code embutido
 
 <p align="center"><img src="docs/images/claude-sidebar.png" alt="Sidebar do Claude Code ao lado do terminal" width="900" /></p>
 
-Abra com o botão **✦ Claude** ou `Ctrl+Shift+B`. Cada aba tem a sua própria sessão do Claude, iniciada **na pasta atual daquela aba**. A largura se ajusta arrastando a divisória.
+O Claude Code vem dentro do app. Abra a sidebar com **✦ Claude** (`Ctrl+Shift+B`): cada aba tem a sua própria conversa, aberta na pasta daquela aba. Ele também funciona como aba própria e como o comando `claude` em qualquer terminal. Na primeira vez, o Claude Code pede para confirmar a pasta e fazer login.
 
-O Claude Code abre direto na sidebar, sem mostrar um shell chamando o comando. Na primeira execução ele pede para escolher um tema e fazer login, como em qualquer instalação nova.
-
-### Temas e barra de status
+## Temas
 
 <p align="center">
-  <img src="docs/images/theme-dracula.png" alt="Tema Drácula, com a branch do Git na barra de status" width="49%" />
   <img src="docs/images/theme-claro.png" alt="Tema Claro" width="49%" />
+  <img src="docs/images/theme-dracula.png" alt="Tema Drácula" width="49%" />
 </p>
 
-Quatro temas (Neo Escuro, Meia-noite, Drácula e Claro), trocados pelo menu **⌄**. A barra de status mostra o shell, a pasta atual e a branch do Git.
+Neo Escuro, Meia-noite, Drácula e Claro, no menu **⋮**. Tema, fonte, favoritos e pastas visitadas ficam salvos.
 
-<p align="center"><img src="docs/images/menu.png" alt="Menu de novas abas, temas e tamanho da fonte" width="700" /></p>
+> Todas as imagens são capturas reais do app, feitas no Linux. No Windows, os shells são cmd, PowerShell e pwsh.
 
-> Todas as imagens são capturas reais do app, feitas no Linux. No Windows, o menu lista cmd, PowerShell e pwsh no lugar de "Shell padrão".
+## Atalhos
 
-## Recursos
-
-| Recurso | Como usar |
+| Ação | Atalho |
 |---|---|
-| Nova aba | `Ctrl+T` ou botão **+** |
-| Fechar aba | `Ctrl+W`, botão **✕** ou clique com o botão do meio |
-| Reabrir aba fechada | `Ctrl+Shift+T` |
-| Alternar abas | `Ctrl+Tab` / `Ctrl+Shift+Tab` |
-| Ir para a aba N | `Ctrl+1` … `Ctrl+8` (`Ctrl+9` vai para a última) |
-| Reordenar | Arrastar a aba |
-| Renomear | Duplo clique na aba |
-| Sidebar do Claude | `Ctrl+Shift+B` ou botão **✦ Claude** |
-| Aba dedicada do Claude | Menu **▾** → *Nova aba do Claude* |
-| Escolher shell | Menu **▾** (cmd, PowerShell, pwsh); botão direito num item o define como padrão |
-| Tema | Menu **⌄** → Tema (fica salvo) |
-| Tamanho da fonte | `Ctrl +` / `Ctrl -` / `Ctrl 0` |
-| Copiar / colar | `Ctrl+C` (com seleção) · `Ctrl+Shift+C/V` · botão direito |
+| Nova aba / fechar / reabrir fechada | `Ctrl+T` / `Ctrl+W` / `Ctrl+Shift+T` |
+| Alternar abas / ir para a aba N | `Ctrl+Tab` / `Ctrl+1…9` |
+| Barra de endereço | `Ctrl+L`, `Alt+D` ou `F6` |
+| Voltar / avançar / pasta acima | `Alt+←` / `Alt+→` / `Alt+↑` |
+| Favoritar a pasta | `Ctrl+D` |
+| Sidebar do Claude | `Ctrl+Shift+B` |
+| Fonte maior / menor / padrão | `Ctrl +` / `Ctrl -` / `Ctrl 0` |
+| Copiar / colar | `Ctrl+C` com seleção, `Ctrl+Shift+C/V`, botão direito |
 
-Detalhes completos em [docs/USO.md](docs/USO.md).
+Detalhes em [docs/USO.md](docs/USO.md).
 
 ## Instalação
 
-### Opção 1 — Instalador (recomendado)
+Baixe o `NeoCMD-Setup-<versão>.exe` em [**Releases**](../../releases) e execute. A instalação é só para o seu usuário (não pede administrador), cria atalhos no menu Iniciar e na área de trabalho e tem desinstalador.
 
-Baixe o `NeoCMD-Setup-<versão>.exe` na página de [**Releases**](../../releases) e execute. A instalação é só para o seu usuário (não pede administrador), cria atalhos no menu Iniciar e na área de trabalho e tem desinstalador.
+> O instalador não é assinado digitalmente, então o Windows SmartScreen pode avisar "editor desconhecido". Clique em **Mais informações → Executar assim mesmo**.
 
-> O executável não é assinado digitalmente, então o Windows SmartScreen pode avisar "editor desconhecido". Clique em **Mais informações → Executar assim mesmo**.
-
-### Opção 2 — Rodar a partir do código
+### A partir do código
 
 Requisitos: [Node.js](https://nodejs.org) 22 ou superior.
 
@@ -87,24 +97,18 @@ npm install
 npm start
 ```
 
-### Gerar o seu próprio executável
-
-```bash
-npm run dist   # instalador em dist/ (gere no Windows)
-```
-
-Mais detalhes em [docs/COMPILAR.md](docs/COMPILAR.md).
+Para gerar o instalador: `npm run dist` (no Windows). Veja [docs/COMPILAR.md](docs/COMPILAR.md).
 
 ## Documentação
 
-- [Guia de uso](docs/USO.md): atalhos, abas, shells e a sidebar do Claude.
-- [Arquitetura](docs/ARQUITETURA.md): como o app é organizado por dentro.
-- [Compilar e publicar](docs/COMPILAR.md): gerar o `.exe` e publicar um Release.
-- [Solução de problemas](docs/PROBLEMAS.md): erros comuns e como resolver.
+- [Guia de uso](docs/USO.md)
+- [Arquitetura](docs/ARQUITETURA.md)
+- [Compilar e publicar](docs/COMPILAR.md)
+- [Solução de problemas](docs/PROBLEMAS.md)
 
 ## Status
 
-Projeto em fase inicial. O app foi desenvolvido e testado em Linux; o executável para Windows foi gerado, mas ainda precisa de mais testes em máquinas Windows. Se encontrar algo errado, abra uma issue com a mensagem de erro.
+Projeto em fase inicial, desenvolvido e testado em Linux; o instalador para Windows é gerado automaticamente, mas ainda precisa de mais testes em máquinas Windows. Encontrou algo errado? Abra uma issue com a mensagem de erro.
 
 ## Tecnologias
 

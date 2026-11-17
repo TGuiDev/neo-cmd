@@ -1,7 +1,7 @@
 {
   "name": "neo-cmd",
-  "version": "0.1.2",
-  "description": "Neo CMD - terminal com abas estilo navegador e Claude Code integrado",
+  "version": "0.2.0",
+  "description": "Neo CMD - terminal para Windows que navega como o navegador, com Claude Code embutido",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",

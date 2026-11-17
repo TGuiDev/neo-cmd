@@ -10,7 +10,7 @@
     <rect x="70" y="78" width="26" height="9" rx="4" fill="url(#g)"/>
   </g>
   <text x="230" y="140" font-family="Segoe UI, Arial, sans-serif" font-size="78" font-weight="700" fill="url(#g)">Neo CMD</text>
-  <text x="232" y="190" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#c9d1d9">Um terminal com abas de navegador e Claude Code embutido.</text>
+  <text x="232" y="190" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#c9d1d9">Um terminal que navega como o seu navegador.</text>
   <g transform="translate(232,222)" font-family="Segoe UI, Arial, sans-serif" font-size="16">
     <rect width="104" height="30" rx="15" fill="#1d212d"/><text x="52" y="21" text-anchor="middle" fill="#c9d1d9">Windows 10/11</text>
     <rect x="116" width="92" height="30" rx="15" fill="#1d212d"/><text x="162" y="21" text-anchor="middle" fill="#c9d1d9">Electron</text>

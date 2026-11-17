@@ -32,7 +32,15 @@ O download do Electron vem do GitHub. Em redes com proxy ou firewall, configure 
 
 ## O atalho não faz o que eu esperava no meu programa
 
-`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, `Ctrl+1…9`, `Ctrl +/-/0` e `Ctrl+Shift+B` são reservados pelo app. Veja [USO.md](USO.md#atalhos-que-o-app-reserva).
+Alguns atalhos de navegador são reservados pelo app, incluindo `Ctrl+L` (barra de endereço) e `Ctrl+D` (favoritar). Para limpar a tela, use o botão ↻ ou `cls`. Veja [USO.md](USO.md#atalhos-que-o-app-reserva).
+
+## A barra de endereço não acompanha o `cd` / voltar fica desativado
+
+O app depende de o shell avisar a pasta atual a cada prompt. Isso é configurado automaticamente no cmd, no PowerShell e no bash. Se você usa um prompt personalizado (um tema do Clink, oh-my-posh, Starship), ele pode substituir essa configuração. Abra uma issue informando qual você usa.
+
+## Ir para uma pasta abriu uma aba nova em vez de usar a atual
+
+É intencional: se a aba atual está rodando um comando, o app não digita nada por cima dele e abre a pasta numa aba nova, como o navegador faz com um link.
 
 ## Reportar um problema
 
