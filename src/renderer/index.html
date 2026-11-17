@@ -50,7 +50,11 @@
       <span class="env-ico"></span><span id="env-btn-label">Ambientes</span>
       <svg viewBox="0 0 16 16" width="12" height="12"><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-    <button id="toggle-claude" class="claude-btn" title="Claude Code (Ctrl+Shift+B)"><span class="spark">✦</span><span>Claude</span></button>
+    <button id="toggle-claude" class="claude-btn" title="Claude Code (Ctrl+Shift+B)" aria-label="Claude Code">
+      <svg class="claude-mark" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+        <g fill="currentColor"><path d="M12 1.6c.5 0 .8.4.8.9l.4 6.2 3.3-5.3c.3-.4.8-.6 1.2-.3.4.2.5.8.3 1.2l-2.9 5.5 5.5-2.9c.4-.2 1-.1 1.2.3.3.4.1.9-.3 1.2l-5.3 3.3 6.2.4c.5 0 .9.3.9.8s-.4.8-.9.8l-6.2.4 5.3 3.3c.4.3.6.8.3 1.2-.2.4-.8.5-1.2.3l-5.5-2.9 2.9 5.5c.2.4.1 1-.3 1.2-.4.3-.9.1-1.2-.3l-3.3-5.3-.4 6.2c0 .5-.3.9-.8.9s-.8-.4-.8-.9l-.4-6.2-3.3 5.3c-.3.4-.8.6-1.2.3-.4-.2-.5-.8-.3-1.2l2.9-5.5-5.5 2.9c-.4.2-1 .1-1.2-.3-.3-.4-.1-.9.3-1.2l5.3-3.3-6.2-.4c-.5 0-.9-.3-.9-.8s.4-.8.9-.8l6.2-.4-5.3-3.3c-.4-.3-.6-.8-.3-1.2.2-.4.8-.5 1.2-.3l5.5 2.9-2.9-5.5c-.2-.4-.1-1 .3-1.2.4-.3.9-.1 1.2.3l3.3 5.3.4-6.2c0-.5.3-.9.8-.9Z"/></g>
+      </svg>
+    </button>
     <button id="update-btn" class="update-btn hidden" title="Reiniciar o Neo CMD na versão nova"></button>
     <button id="menu-btn" class="nav-btn" title="Menu">
       <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="3.2" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="12.8" r="1.3" fill="currentColor"/></svg>
@@ -92,6 +96,7 @@
   <script src="../../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
   <script src="../../node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js"></script>
   <script src="../../node_modules/@xterm/addon-serialize/lib/addon-serialize.js"></script>
+  <script src="../../node_modules/@xterm/addon-webgl/lib/addon-webgl.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

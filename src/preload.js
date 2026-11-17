@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('neo', {
   resize: (id, cols, rows) => ipcRenderer.send('pty:resize', id, cols, rows),
   kill: (id) => ipcRenderer.send('pty:kill', id),
   home: () => ipcRenderer.invoke('app:home'),
+  appInfo: () => ipcRenderer.invoke('app:info'),
   gitRoot: (cwd) => ipcRenderer.invoke('app:git-root', cwd),
   gitBranch: (cwd, distro) => ipcRenderer.invoke('app:git-branch', cwd, distro),
   complete: (cwd, input, distro) => ipcRenderer.invoke('fs:complete', cwd, input, distro),

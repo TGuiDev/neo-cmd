@@ -153,12 +153,15 @@
   // A fonte escolhida pela pessoa vem primeiro; depois Nerd Fonts comuns; por fim as fontes de ícones
   // embutidas (atual e antiga), que cobrem os ícones de prompt que faltarem.
   let userFont = store.get('neo.termFont', '');
+  // No Windows, o terminal precisa saber que fala com o ConPTY (que reescreve a tela do seu jeito);
+  // sem isso, a rolagem e as quebras de linha se corrompem em programas que redesenham a tela.
+  let WIN_PTY;
   const termFont = () => [userFont && `"${userFont}"`, '"CaskaydiaCove Nerd Font Mono"', '"CaskaydiaMono Nerd Font Mono"', '"Cascadia Code NF"',
     '"Cascadia Mono NF"', '"Cascadia Code"', '"Cascadia Mono"', '"JetBrains Mono"', 'Consolas', '"Symbols Nerd Font Mono"',
     '"Symbols Nerd Font Legacy"', '"Courier New"', 'monospace'].filter(Boolean).join(',');
   function applyTermFont() {
     const f = termFont();
-    byPty.forEach(({ term }) => { term.options.fontFamily = f; try { term.refresh(0, term.rows - 1); } catch {} });
+    byPty.forEach(({ term }) => { term.options.fontFamily = f; try { term.clearTextureAtlas(); term.refresh(0, term.rows - 1); } catch {} });
     requestAnimationFrame(() => tabs.forEach((t) => { try { t.fit.fit(); } catch {} if (t.claude) try { t.claude.fit.fit(); } catch {} }));
   }
   // Quando as fontes embutidas terminam de carregar, redesenha os terminais já abertos.
@@ -168,7 +171,7 @@
     const term = new Terminal({
       theme: xtermTheme(), fontFamily: termFont(),
       // Altura de linha 1: as faixas e setas dos prompts (powerline) encostam umas nas outras, como no Windows Terminal.
-      fontSize, lineHeight: 1, cursorBlink: true, cursorStyle: 'bar', cursorWidth: 2, scrollback: 10000, allowProposedApi: true,
+      fontSize, lineHeight: 1, cursorBlink: true, windowsPty: WIN_PTY, cursorStyle: 'bar', cursorWidth: 2, scrollback: 10000, allowProposedApi: true,
     });
     const fit = new FitAddon.FitAddon();
     term.loadAddon(fit);
@@ -179,6 +182,13 @@
     term.loadAddon(serializer);
     term.unicode.activeVersion = '11';
     term.open(container);
+    // Desenho pela placa de vídeo (como o VS Code): mais rápido e sem falhas ao rolar. Se a placa
+    // não colaborar, volta sozinho ao desenho comum.
+    try {
+      const gl = new WebglAddon.WebglAddon();
+      gl.onContextLoss(() => { try { gl.dispose(); } catch {} });
+      term.loadAddon(gl);
+    } catch {}
     term.onData((d) => { onInput?.(d); neo.write(getId(), d); });
     if (onTitle) term.onTitleChange(onTitle);
     term.parser.registerOscHandler(9, (data) => {
@@ -1417,6 +1427,8 @@
   }).catch(() => {});
   neo.home().then(async (hm) => {
     home = hm;
+    const info = await neo.appInfo().catch(() => null);
+    if (info && info.platform === 'win32') WIN_PTY = { backend: 'conpty', buildNumber: info.build };
     // Janela aberta para receber uma aba movida, ou para abrir uma pasta/ambiente (Shift+clique).
     const init = await neo.winInit().catch(() => null);
     if (init && init.type === 'move') await newTab({ kind: init.kind, distro: init.distro, cwd: init.cwd, ntp: false, adopt: init });

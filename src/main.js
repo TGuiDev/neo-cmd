@@ -193,6 +193,8 @@ ipcMain.handle('win:init', (e) => {
   return init;
 });
 ipcMain.handle('app:home', () => os.homedir());
+// Versão do Windows (número do build): o terminal usa para se ajustar ao ConPTY.
+ipcMain.handle('app:info', () => ({ platform: process.platform, build: Number(String(os.release()).split('.')[2]) || 0 }));
 ipcMain.handle('wsl:list', () => listWsl());
 // Raiz do repositório Git da pasta (para o Claude abrir no projeto, não numa subpasta).
 ipcMain.handle('app:git-root', (_e, cwd) => new Promise((resolve) => {

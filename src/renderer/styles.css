@@ -158,12 +158,12 @@ body.at-home .tab.active { background:transparent; box-shadow:none; color:var(--
 .env-ico { flex:none; width:9px; height:9px; border-radius:2px; background:var(--env, var(--faint)); }
 .env-btn:not(.has-env) .env-ico { background:transparent; box-shadow:inset 0 0 0 1.5px var(--faint); }
 
-.claude-btn { flex:none; display:flex; align-items:center; gap:7px; height:30px; padding:0 12px 0 10px; margin-left:6px; border-radius:8px;
-  border:1px solid var(--line); background:transparent; color:var(--text); font-size:12.5px; }
-.claude-btn .spark { color:var(--accent); }
+.claude-btn { flex:none; display:grid; place-items:center; width:32px; height:30px; padding:0; margin-left:6px; border-radius:8px;
+  border:1px solid var(--line); background:transparent; color:#d97757; }
 .claude-btn:hover { background:var(--hover); }
-.claude-btn.on { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
-.claude-btn.on .spark { color:var(--on-accent); }
+.claude-btn .claude-mark { transition:transform .25s ease; }
+.claude-btn:hover .claude-mark { transform:rotate(30deg); }
+.claude-btn.on { background:#d97757; border-color:#d97757; color:#fff; }
 
 /* ---------- favoritos ---------- */
 #bookmarks { display:flex; align-items:center; gap:2px; height:30px; padding:0 8px; flex:none; background:var(--chrome);

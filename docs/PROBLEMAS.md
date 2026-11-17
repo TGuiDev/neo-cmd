@@ -46,6 +46,10 @@ Prompts do Clink, oh-my-posh e Starship usam ícones de Nerd Font. O Neo CMD inc
 
 O terminal usa altura de linha 1 e as larguras de caracteres do Unicode 11 (as mesmas do Windows), para as faixas e setas do powerline encostarem umas nas outras. Se ainda houver desalinhamento, escolha a fonte do seu Windows Terminal em *Fonte do terminal…* e abra uma issue com uma captura de tela se o problema continuar.
 
+## A tela fica bagunçada ao rolar (linhas repetidas, partes sobrepostas)
+
+O terminal se ajusta ao ConPTY do Windows (`windowsPty`) e desenha pela placa de vídeo (WebGL), como o VS Code, o que evita a maior parte desses problemas, inclusive com programas que redesenham a tela, como o Claude Code. Se a placa de vídeo não estiver disponível, o app volta sozinho ao desenho comum. Se ainda acontecer, abra uma issue com uma captura de tela e o programa que estava rodando.
+
 ## A atualização automática não aparece
 
 Ela só funciona no app instalado pelo `NeoCMD-Setup-x.y.z.exe` (não ao rodar com `npm start`). Use menu **⋮** → *Procurar atualizações* para ver a mensagem de erro, se houver.
