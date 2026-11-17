@@ -4,9 +4,9 @@
 
 O logo **neo** no canto superior esquerdo (ou `Alt+Home`) mostra a página inicial, e o app abre nela. Ela não é uma aba: nada roda até você escolher. Abrir uma pasta, um ambiente ou digitar um comando cria uma aba nova já no lugar certo. `Esc` volta para a aba em que você estava, e fechar a última aba volta para a página inicial.
 
-## Página de nova aba (opcional)
+## Página de nova aba
 
-Por padrão, `Ctrl+T` abre direto um terminal. Se preferir que toda aba nova comece na mesma página da página inicial, ligue menu **⋮** → *Página de nova aba*. Ela tem:
+Toda aba nova (**+** ou `Ctrl+T`) começa na mesma página da tela inicial. O que você escolher nela (pasta, ambiente, comando, shell) acontece na própria aba, sem criar outra. Para abas novas abrirem direto no terminal, desligue em menu **⋮** → *Página de nova aba*. Ela tem:
 
 - **Prompt:** a linha `❯` funciona como a barra de endereço (veja abaixo). Comece a digitar e as sugestões aparecem.
 - **Ambientes:** a lista dos seus ambientes de trabalho, do mais usado para o menos usado.

@@ -56,8 +56,8 @@
   const WIN_TAG = Math.random().toString(36).slice(2, 7);
   let fontSize = Number(store.get('neo.fontSize', 14)) || 14;
   let defaultShell = store.get('neo.shell', SHELLS[0].key);
-  // Com a página inicial (logo), abas novas abrem direto no terminal; a página de nova aba fica opcional.
-  let ntpEnabled = store.get('neo.ntp', false);
+  // Abas novas (+ ou Ctrl+T) começam na mesma página da tela inicial; dá para desligar no menu.
+  let ntpEnabled = store.get('neo.ntp', true);
   let homeVisible = false, homeEl = null;
   const tabs = [];
   const byPty = new Map();   // ptyId -> { term, hold, owner }
