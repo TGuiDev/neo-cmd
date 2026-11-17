@@ -19,10 +19,10 @@
     brightMagenta: '#a371f7', brightCyan: '#1b9aaa', brightWhite: '#1f2430',
   };
   const THEMES = {
-    neo:      { label: 'Neo Escuro', bg: '#0f121c', fg: '#dfe3ee', accent: '#7c9cff', sel: '#33406b', bar: '#0a0c12', sym: '#dfe3ee', ansi: ANSI_DARK },
-    midnight: { label: 'Meia-noite', bg: '#09111b', fg: '#d4e7f7', accent: '#3dd6f5', sel: '#1d4a63', bar: '#04070c', sym: '#d4e7f7', ansi: ANSI_DARK },
+    neo:      { label: 'Grafite',    bg: '#131317', fg: '#ecebf0', accent: '#8457e6', sel: '#3a2f5c', bar: '#0e0e11', sym: '#ecebf0', ansi: ANSI_DARK },
+    midnight: { label: 'Meia-noite', bg: '#0d121c', fg: '#e3e9f4', accent: '#8b6cf0', sel: '#2c3352', bar: '#0a0d14', sym: '#e3e9f4', ansi: ANSI_DARK },
     dracula:  { label: 'Drácula',    bg: '#21222c', fg: '#f8f8f2', accent: '#bd93f9', sel: '#44475a', bar: '#18191f', sym: '#f8f8f2', ansi: ANSI_DARK },
-    claro:    { label: 'Claro',      bg: '#ffffff', fg: '#1d2230', accent: '#4f6bed', sel: '#c9d6ff', bar: '#dde2ec', sym: '#1d2230', ansi: ANSI_LIGHT },
+    claro:    { label: 'Claro',      bg: '#ffffff', fg: '#1b1a21', accent: '#7446dc', sel: '#dccffb', bar: '#e9e9ee', sym: '#1b1a21', ansi: ANSI_LIGHT },
   };
   let themeId = THEMES[store.get('neo.theme')] ? store.get('neo.theme') : 'neo';
   const xtermTheme = () => {
@@ -38,7 +38,7 @@
     : [{ key: 'default', kind: 'default', label: 'Shell padrão', sub: 'bash/zsh' }];
   let wslDefault = null;
   const KIND_LABEL = { cmd: 'cmd', powershell: 'PowerShell', pwsh: 'PowerShell 7', claude: 'Claude', default: 'shell', wsl: 'WSL' };
-  const KIND_ICON = { cmd: '>_', powershell: 'PS', pwsh: 'PS', claude: '✦', default: '$_', wsl: '🐧' };
+  const KIND_ICON = { cmd: '>_', powershell: 'PS', pwsh: 'PS', claude: '✦', default: '$_', wsl: '$' };
   const shellOf = (key) => {
     const found = SHELLS.find((x) => x.key === key);
     if (found) return { kind: found.kind, distro: found.distro };
@@ -101,8 +101,8 @@
   const envSub = (env) => { const sh = shellOf(env.shell); return `${kindLabel(sh.kind, sh.distro)} · ${shortPath(env.cwd)}`; };
 
   /* ---------- pasta 3D ---------- */
-  const FOLDER_COLORS = ['#f5b942', '#5b9dff', '#3ccf91', '#a77bff', '#ff7aa8', '#ff9a4d', '#38c6e0'];
-  const folderColor = (p) => FOLDER_COLORS[hue(p) % FOLDER_COLORS.length];
+  // Pastas têm uma cor só (âmbar); a cor fica reservada para o que tem significado, como os ambientes.
+  const folderColor = () => '#e2a336';
   function folder3d(color, glyph = '') {
     const f = h('div', 'folder3d');
     f.style.setProperty('--c', color);
@@ -147,9 +147,9 @@
   /* =================== terminal =================== */
   // Fontes com ícones (Nerd Fonts) instaladas vêm primeiro; a fonte de ícones embutida cobre o que faltar.
   const TERM_FONT = ['"CaskaydiaCove Nerd Font Mono"', '"CaskaydiaMono Nerd Font Mono"', '"Cascadia Code NF"', '"Cascadia Mono NF"',
-    '"Cascadia Code"', '"Cascadia Mono"', 'Consolas', '"Symbols Nerd Font Mono"', '"Courier New"', 'monospace'].join(',');
+    '"Cascadia Code"', '"Cascadia Mono"', '"JetBrains Mono"', 'Consolas', '"Symbols Nerd Font Mono"', '"Courier New"', 'monospace'].join(',');
   // Quando a fonte de ícones termina de carregar, redesenha os terminais já abertos.
-  document.fonts.load('14px "Symbols Nerd Font Mono"', '\ue0b0').then(() => {
+  Promise.all([document.fonts.load('14px "Symbols Nerd Font Mono"', '\ue0b0'), document.fonts.load('14px "JetBrains Mono"')]).then(() => {
     byPty.forEach(({ term }) => { term.options.fontFamily = TERM_FONT; try { term.refresh(0, term.rows - 1); } catch {} });
   }).catch(() => {});
   function makeTerm(container, getId, { onPrompt, onTitle, onInput } = {}) {
@@ -512,7 +512,7 @@
     const raw = q.trim();
     if (!raw) {
       frecent().filter((p) => !samePath(p, t.cwd)).slice(0, 6)
-        .forEach((p) => out.push({ ico: '📁', cls: 'dir', title: baseName(p), sub: shortPath(p), run: () => openFolder(p), alt: () => newTab({ cwd: p, ntp: false }) }));
+        .forEach((p) => out.push({ ico: '', cls: 'dir', folder: p, title: baseName(p), sub: shortPath(p), run: () => openFolder(p), alt: () => newTab({ cwd: p, ntp: false }) }));
       return out;
     }
     if (raw.startsWith('@')) {
@@ -531,9 +531,9 @@
     }
     if (looksLikePath(raw)) {
       const r = await neo.complete(t.cwd, raw, t.kind === 'wsl' ? t.distro || wslDefault : undefined);
-      if (r.exact) out.push({ ico: '📁', cls: 'dir', title: `Ir para ${baseName(r.exact)}`, sub: r.exact, run: () => openFolder(r.exact), alt: () => newTab({ cwd: r.exact, ntp: false }), fill: r.exact });
+      if (r.exact) out.push({ ico: '', cls: 'dir', folder: r.exact, title: `Ir para ${baseName(r.exact)}`, sub: r.exact, run: () => openFolder(r.exact), alt: () => newTab({ cwd: r.exact, ntp: false }), fill: r.exact });
       r.items.filter((it) => !samePath(it.path, r.exact))
-        .forEach((it) => out.push({ ico: '📁', cls: 'dir', title: it.name, sub: it.path, run: () => openFolder(it.path), alt: () => newTab({ cwd: it.path, ntp: false }), fill: it.path + sepOf(it.path) }));
+        .forEach((it) => out.push({ ico: '', cls: 'dir', folder: it.path, title: it.name, sub: it.path, run: () => openFolder(it.path), alt: () => newTab({ cwd: it.path, ntp: false }), fill: it.path + sepOf(it.path) }));
       if (!out.length) out.push({ ico: '>_', cls: 'run', title: `Executar: ${raw}`, run: () => runCommand(raw) });
       return out;
     }
@@ -541,7 +541,7 @@
     const ql = raw.toLowerCase();
     envs.filter((e) => e.name.toLowerCase().includes(ql)).slice(0, 3).forEach((e) => out.push(envSug(e, raw)));
     const dirs = [...new Set([...bookmarks, ...frecent()])].filter((p) => baseName(p).toLowerCase().includes(ql)).slice(0, 4);
-    dirs.forEach((p) => out.push({ ico: isBookmarked(p) ? '★' : '📁', cls: 'dir', title: baseName(p), sub: shortPath(p), q: raw, run: () => openFolder(p), alt: () => newTab({ cwd: p, ntp: false }) }));
+    dirs.forEach((p) => out.push({ ico: '', cls: 'dir', folder: p, title: baseName(p), sub: shortPath(p), q: raw, run: () => openFolder(p), alt: () => newTab({ cwd: p, ntp: false }) }));
     out.push({ ico: '✦', cls: 'ask', title: `Perguntar ao Claude: ${raw}`, sub: 'abre a sidebar com a pergunta', run: () => askClaude(raw) });
     return out;
   }
@@ -555,7 +555,8 @@
       if (!list.length) { close(); return; }
       list.forEach((s, i) => {
         const row = h('div', 'sug' + (i === sel ? ' sel' : ''));
-        const ico = h('span', 's-ico ' + (s.cls || ''), s.ico);
+        const ico = h('span', 's-ico ' + (s.cls || ''), s.folder ? '' : s.ico);
+        if (s.folder) ico.appendChild(miniFolder(folderColor(s.folder)));
         if (s.color) ico.style.color = s.color;
         const main = h('div', 's-main');
         main.appendChild(mark(s.title, s.q || ''));
@@ -604,103 +605,97 @@
   $('#nav-clear').onclick = () => { if (active && !active.ntp) { active.term.clear(); focusActive(); } };
 
   /* =================== página de nova aba =================== */
-  function greeting() { const hr = new Date().getHours(); return hr < 5 ? 'Boa madrugada' : hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite'; }
   async function showNtp(tab) {
     const known = await neo.knownDirs();
     const page = h('div', 'ntp');
-    page.innerHTML = '<div class="aurora"><i></i><i></i><i></i></div>';
     const inner = h('div', 'ntp-inner');
-    const clock = h('div', 'ntp-clock');
-    const tick = () => { clock.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
-    tick(); page._clock = setInterval(tick, 10000);
-    const greet = h('div', 'ntp-greet');
-    const date = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-    greet.append(h('b', null, greeting()), ` — ${date}`);
+
+    // Onde você está, como numa linha de prompt.
+    const where = h('div', 'ntp-where');
+    where.append(h('span', 'w-shell', kindLabel(tab.kind, tab.distro)), h('span', 'w-path', shortPath(tab.cwd)));
+    neo.gitBranch(tab.cwd, tab.distro).then((b) => { if (b) where.appendChild(h('span', 'w-git', b)); });
 
     const search = h('div', 'ntp-search');
     const box = h('div', 'box');
-    box.innerHTML = '<svg class="ico" viewBox="0 0 16 16" width="17" height="17"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m10.5 10.5 3.2 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
     const input = h('input');
-    input.placeholder = 'Ir para uma pasta, rodar um comando ou ?perguntar ao Claude';
+    input.placeholder = 'pasta, comando, @ambiente ou ?pergunta';
     input.spellcheck = false;
-    box.appendChild(input);
+    box.append(h('span', 'sign', '❯'), input);
     const pop = h('div', 'omni-pop hidden');
     search.append(box, pop);
     attachOmni(input, pop, search, { showOnEmpty: false });
+    inner.append(where, search);
 
-    inner.append(clock, greet, search);
+    const section = (title, kbd) => {
+      const sec = h('section', 'ntp-section');
+      const head = h('div', 'sec-head');
+      head.appendChild(h('h3', null, title));
+      if (kbd) head.appendChild(h('kbd', null, kbd));
+      sec.appendChild(head);
+      inner.appendChild(sec);
+      return sec;
+    };
 
-    // Ambientes de trabalho
-    const envSec = h('div', 'ntp-section');
-    const envHead = h('div', 'sec-head');
-    envHead.append(h('h3', null, 'Ambientes de trabalho'));
-    envSec.appendChild(envHead);
-    const envGrid = h('div', 'tiles');
-    [...envs].sort((a, b) => (b.used || 0) - (a.used || 0)).slice(0, 7).forEach((env, i) => {
-      const card = h('div', 'tile env-card');
-      card.style.animationDelay = i * 35 + 'ms';
-      card.style.setProperty('--env', env.color);
+    // Ambientes: uma lista, do mais usado para o menos usado.
+    const envSec = section('Ambientes', 'Ctrl+Shift+E');
+    const list = h('div', 'env-list');
+    [...envs].sort((a, b) => (b.used || 0) - (a.used || 0)).slice(0, 6).forEach((env) => {
       const sh = shellOf(env.shell);
-      card.append(folder3d(env.color, KIND_ICON[sh.kind] || ''), h('div', 't-name', env.name), h('div', 't-path', envSub(env)));
-      card.title = `${env.name}\n${env.cwd}${env.startup ? '\n\nAo abrir:\n' + env.startup : ''}`;
-      const edit = h('button', 't-x t-edit', '✎'); edit.title = 'Editar ambiente';
+      const row = h('div', 'env-item');
+      row.style.setProperty('--env', env.color);
+      const name = h('div', 'ei-name');
+      name.append(h('span', 'ei-dot'), h('span', null, env.name));
+      const edit = h('button', 'ei-edit', 'Editar'); edit.title = 'Editar ambiente';
       edit.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); editEnv(env); });
-      card.appendChild(edit);
-      card.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.t-x')) return;
+      row.append(name, h('div', 'ei-shell', kindLabel(sh.kind, sh.distro)), h('div', 'ei-path', shortPath(env.cwd)), edit);
+      row.title = env.startup ? `Ao abrir:\n${env.startup}` : env.cwd;
+      row.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.ei-edit')) return;
         e.preventDefault();
         if (e.button === 1 || e.ctrlKey) openEnv(env, { forceNew: true });
         else if (e.button === 0) openEnv(env, { tab });
       });
-      envGrid.appendChild(card);
+      list.appendChild(row);
     });
-    const add = h('div', 'tile add-card');
-    add.append(h('div', 'plus', '+'), h('div', 't-name', 'Novo ambiente'), h('div', 't-path', envs.length ? 'pasta, shell e comandos' : 'salve um projeto para abrir com um clique'));
+    const add = h('div', 'env-item add');
+    add.append(h('div', 'ei-name', '+ Novo ambiente'), h('div', 'ei-path', envs.length ? '' : 'Salve pasta, shell e comandos de um projeto para abrir com um clique.'));
     add.addEventListener('mousedown', (e) => { if (e.button !== 0) return; e.preventDefault(); editEnv(null, { fromTab: tab }); });
-    envGrid.appendChild(add);
-    envSec.appendChild(envGrid); inner.appendChild(envSec);
+    list.appendChild(add);
+    envSec.appendChild(list);
 
-    const tileSection = (title, paths) => {
-      if (!paths.length) return;
-      const sec = h('div', 'ntp-section');
-      sec.appendChild(h('h3', null, title));
-      const grid = h('div', 'tiles');
-      paths.slice(0, 8).forEach((p, i) => {
-        const tile = h('div', 'tile');
-        tile.style.animationDelay = i * 35 + 'ms';
-        const glyph = samePath(p, home) ? '⌂' : isBookmarked(p) ? '★' : isWslPath(p) ? '🐧' : '';
-        tile.append(folder3d(folderColor(p), glyph), h('div', 't-name', samePath(p, home) ? 'Pasta pessoal' : baseName(p) || p), h('div', 't-path', shortPath(p)));
-        tile.title = p;
-        if (visits[p]) {
-          const x = h('button', 't-x', '✕'); x.title = 'Remover das mais visitadas';
-          x.addEventListener('mousedown', (e) => { e.stopPropagation(); delete visits[p]; store.set('neo.visits', visits); tile.remove(); });
-          tile.appendChild(x);
+    // Pastas: favoritas primeiro, depois as mais visitadas, numa prateleira.
+    const most = frecent().filter((p) => !isBookmarked(p));
+    const paths = [...bookmarks, ...(most.length ? most : known.filter((p) => !isBookmarked(p)))].slice(0, 8);
+    if (paths.length) {
+      const sec = section(most.length || bookmarks.length ? 'Pastas' : 'Comece por aqui');
+      const shelf = h('div', 'shelf');
+      paths.forEach((p) => {
+        const item = h('div', 'shelf-item');
+        const glyph = samePath(p, home) ? '⌂' : isBookmarked(p) ? '★' : isWslPath(p) ? '$' : '';
+        item.append(folder3d(folderColor(p), glyph), h('div', 'si-name', samePath(p, home) ? 'Pasta pessoal' : baseName(p) || p));
+        item.title = p;
+        if (visits[p] && !isBookmarked(p)) {
+          const x = h('button', 'si-x', '×'); x.title = 'Remover das mais visitadas';
+          x.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); delete visits[p]; store.set('neo.visits', visits); item.remove(); });
+          item.appendChild(x);
         }
-        tile.addEventListener('mousedown', (e) => {
-          if (e.target.closest('.t-x')) return;
+        item.addEventListener('mousedown', (e) => {
+          if (e.target.closest('.si-x')) return;
           e.preventDefault(); // não tira o foco do terminal
           if (e.button === 1 || e.ctrlKey) newTab({ cwd: p, ntp: false, ...(isWslPath(p) ? { kind: 'wsl', distro: visits[p]?.d } : {}) });
           else if (e.button === 0) openFolder(p, { tab });
         });
-        grid.appendChild(tile);
+        shelf.appendChild(item);
       });
-      sec.appendChild(grid); inner.appendChild(sec);
-    };
-    if (bookmarks.length) tileSection('Favoritos', bookmarks);
-    const most = frecent().filter((p) => !isBookmarked(p));
-    tileSection(most.length ? 'Mais visitadas' : 'Comece por aqui', most.length ? most : known);
+      sec.appendChild(shelf);
+    }
 
-    const sec = h('div', 'ntp-section');
-    sec.appendChild(h('h3', null, 'Abrir com'));
+    // Abrir esta aba com outro shell.
     const starts = h('div', 'starts');
-    [...SHELLS.map((x) => ({ kind: x.kind, distro: x.distro, t: x.label, s: x.sub })), { kind: 'claude', t: 'Claude Code', s: 'conversa nesta pasta' }].forEach((it) => {
-      const b = h('div', 'start');
-      b.dataset.kind = it.kind;
-      const fav = h('span', 'fav', KIND_ICON[it.kind]);
-      fav.style.background = it.kind === 'claude' ? 'linear-gradient(135deg,var(--accent),var(--accent-2))' : it.kind === 'wsl' ? 'linear-gradient(135deg,#f0743e,#c2410c)' : it.kind.startsWith('p') ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : 'linear-gradient(135deg,#3a4256,#262c3c)';
-      const txt = h('div');
-      txt.append(h('div', 'st-t', it.t), h('div', 'st-s', it.s));
-      b.append(fav, txt);
+    starts.appendChild(h('span', 'st-label', 'Abrir com'));
+    [...SHELLS.map((x) => ({ kind: x.kind, distro: x.distro, t: x.label })), { kind: 'claude', t: 'Claude Code' }].forEach((it) => {
+      const b = h('button', 'start', it.t);
+      b.type = 'button';
       b.addEventListener('mousedown', (e) => {
         if (e.button !== 0) return; e.preventDefault();
         const cwd = it.kind === 'wsl' ? (isWslPath(tab.cwd) ? tab.cwd : '~') : isWslPath(tab.cwd) ? home : tab.cwd;
@@ -708,10 +703,10 @@
       });
       starts.appendChild(b);
     });
-    sec.appendChild(starts); inner.appendChild(sec);
+    inner.appendChild(starts);
 
     const hint = h('div', 'ntp-hint');
-    hint.innerHTML = '<span><kbd>Esc</kbd> ir para o terminal</span><span><kbd>Ctrl+L</kbd> barra de endereço</span><span><kbd>@</kbd> ambientes</span><span><kbd>Alt+←</kbd> voltar</span><span><kbd>Ctrl+D</kbd> favoritar</span><span><kbd>&gt;</kbd> comandos do app</span>';
+    hint.innerHTML = '<span><kbd>Esc</kbd> terminal</span><span><kbd>Ctrl+L</kbd> barra de endereço</span><span><kbd>Alt+←</kbd> voltar</span><span><kbd>Ctrl+D</kbd> favoritar</span><span><kbd>&gt;</kbd> ações</span>';
     inner.appendChild(hint);
     page.appendChild(inner);
     page.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('.omni-pop:not(.hidden)', page)) hideNtp(tab); });
@@ -725,8 +720,7 @@
     const page = tab.ntp;
     if (!page) return;
     tab.ntp = null;
-    clearInterval(page._clock);
-    page.classList.add('leaving');
+        page.classList.add('leaving');
     setTimeout(() => page.remove(), 180);
     const newKind = kind || tab.kind;
     const newDistro = kind ? distro : tab.distro;
@@ -878,7 +872,7 @@
   function refreshNtps() {
     tabs.forEach((t) => {
       if (!t.ntp || $('input', t.ntp)?.value) return; // não apaga o que a pessoa está digitando
-      const old = t.ntp; clearInterval(old._clock); t.ntp = null; old.remove(); showNtp(t);
+      const old = t.ntp; t.ntp = null; old.remove(); showNtp(t);
     });
   }
 

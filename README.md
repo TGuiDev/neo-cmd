@@ -21,9 +21,9 @@ Você já sabe usar um navegador. O Neo CMD leva esse jeito de navegar para o te
 
 ## Página de nova aba
 
-<p align="center"><img src="docs/images/ntp.png" alt="Página de nova aba com ambientes de trabalho, favoritos e pastas em 3D" width="900" /></p>
+<p align="center"><img src="docs/images/ntp.png" alt="Página de nova aba: prompt, lista de ambientes e prateleira de pastas" width="900" /></p>
 
-Toda aba nova começa aqui, como no navegador: seus **ambientes de trabalho**, as pastas **favoritas** e as **mais visitadas** em pastinhas 3D (passe o mouse e a pasta abre), uma busca que entende pastas, comandos e perguntas, e atalhos para abrir com cmd, PowerShell, WSL ou o Claude. Clique e o terminal já abre ali, sem nenhum `cd` digitado.
+Toda aba nova começa num prompt: a pasta atual em cima e uma linha de comando grande, que aceita pasta, comando, `@ambiente` ou `?pergunta`. Abaixo, seus **ambientes de trabalho** em lista e uma **prateleira de pastas** (favoritas primeiro, depois as mais visitadas). Clique e o terminal já abre ali, sem nenhum `cd` digitado.
 
 ## Ambientes de trabalho
 
@@ -35,7 +35,7 @@ Toda aba nova começa aqui, como no navegador: seus **ambientes de trabalho**, a
 Mexe em vários projetos ao mesmo tempo? Salve cada um como um **ambiente**: nome, cor, shell (cmd, PowerShell ou **WSL com a distro que você escolher**), pasta, comandos ao abrir (por exemplo `rbenv shell 3.3.0` e `bundle install`) e, se quiser, a sidebar do Claude já aberta. Depois é só selecionar:
 
 - botão **Ambientes** na barra de ferramentas (`Ctrl+Shift+E`);
-- cartões na página de nova aba;
+- a lista de ambientes na página de nova aba;
 - `@nome` na barra de endereço.
 
 A aba ganha a cor e o nome do ambiente, e os comandos rodam em ordem, um depois do outro. "Salvar esta aba como ambiente" já preenche shell e pasta a partir da aba atual.
@@ -78,7 +78,7 @@ O Claude Code vem dentro do app. Abra a sidebar com **✦ Claude** (`Ctrl+Shift+
   <img src="docs/images/theme-dracula.png" alt="Tema Drácula" width="49%" />
 </p>
 
-Neo Escuro, Meia-noite, Drácula e Claro, no menu **⋮**. Tema, fonte, favoritos, ambientes e pastas visitadas ficam salvos.
+Grafite, Meia-noite, Drácula e Claro, no menu **⋮**. Tema, fonte, favoritos, ambientes e pastas visitadas ficam salvos.
 
 ## WSL
 

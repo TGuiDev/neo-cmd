@@ -4,8 +4,9 @@
 
 Toda aba nova abre numa página como a do navegador:
 
-- **Busca:** o mesmo campo da barra de endereço (veja abaixo). Comece a digitar e as sugestões aparecem.
-- **Favoritos** e **Mais visitadas:** blocos com as suas pastas. Clique para abrir o terminal ali (sem nenhum `cd` digitado); `Ctrl+clique` ou botão do meio abre em outra aba. O **✕** de um bloco o remove das mais visitadas.
+- **Prompt:** a linha `❯` funciona como a barra de endereço (veja abaixo). Comece a digitar e as sugestões aparecem.
+- **Ambientes:** a lista dos seus ambientes de trabalho, do mais usado para o menos usado.
+- **Pastas:** uma prateleira com as favoritas (★) e as mais visitadas. Clique para abrir o terminal ali (sem nenhum `cd` digitado); `Ctrl+clique` ou botão do meio abre em outra aba. O **×** remove uma pasta das mais visitadas.
 - **Abrir com:** reinicia a aba com cmd, PowerShell, pwsh ou o Claude Code, na mesma pasta.
 - `Esc` vai direto para o terminal.
 
@@ -17,17 +18,17 @@ Um ambiente guarda tudo o que você precisa para entrar num projeto:
 
 | Campo | Para quê |
 |---|---|
-| Nome e cor | aparecem na aba, no botão de ambientes e nos cartões |
+| Nome e cor | aparecem na aba, no botão de ambientes e na página de nova aba |
 | Shell | cmd, PowerShell, pwsh ou uma distro do WSL |
 | Pasta | onde o terminal abre (no WSL, caminho do Linux, como `/home/voce/projetos/loja` ou `~`) |
 | Comandos ao abrir | um por linha; rodam em ordem, cada um quando o anterior termina |
 | Sidebar do Claude | abre a sidebar junto, já na pasta do projeto |
 
-**Criar:** botão **Ambientes** → *Novo ambiente*, o cartão **+** da página de nova aba, `@nome` na barra de endereço, ou *Salvar esta aba como ambiente* (preenche shell e pasta a partir da aba atual).
+**Criar:** botão **Ambientes** → *Novo ambiente*, *+ Novo ambiente* na página de nova aba, `@nome` na barra de endereço, ou *Salvar esta aba como ambiente* (preenche shell e pasta a partir da aba atual).
 
-**Abrir:** clique no ambiente (botão **Ambientes**, `Ctrl+Shift+E`, cartão da página de nova aba ou `@nome`). Na página de nova aba ele usa a própria aba; nos outros lugares abre uma aba nova. `Ctrl+clique` ou botão do meio sempre abre em aba nova.
+**Abrir:** clique no ambiente (botão **Ambientes**, `Ctrl+Shift+E`, lista da página de nova aba ou `@nome`). Na página de nova aba ele usa a própria aba; nos outros lugares abre uma aba nova. `Ctrl+clique` ou botão do meio sempre abre em aba nova.
 
-**Editar ou excluir:** o lápis ✎ no cartão ou no seletor. Excluir pede confirmação.
+**Editar ou excluir:** *Editar*, que aparece ao passar o mouse no ambiente (na página de nova aba ou no seletor). Excluir pede confirmação.
 
 ## WSL
 
@@ -101,7 +102,7 @@ O Claude Code pede para confirmar se você confia na pasta, escolher um tema e f
 
 ## Temas e fonte
 
-- Menu **⋮** → *Tema*: Neo Escuro, Meia-noite, Drácula e Claro.
+- Menu **⋮** → *Tema*: Grafite (padrão), Meia-noite, Drácula e Claro.
 - `Ctrl +`, `Ctrl -` e `Ctrl 0` mudam a fonte.
 - Tema, fonte, shell padrão, favoritos, pastas visitadas e o estado da sidebar ficam salvos.
 

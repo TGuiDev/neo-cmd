@@ -200,17 +200,17 @@ ipcMain.handle('fs:isdir', (_e, p) => isDir(expand(p)));
 
 ipcMain.on('app:open-external', (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
 ipcMain.on('app:titlebar', (_e, color, symbolColor) => {
-  try { win?.setTitleBarOverlay({ color, symbolColor, height: 44 }); } catch {}
+  try { win?.setTitleBarOverlay({ color, symbolColor, height: 40 }); } catch {}
 });
 
 function createWindow() {
   win = new BrowserWindow({
     width: 1280, height: 780, minWidth: 640, minHeight: 400,
-    backgroundColor: '#0b0d14',
+    backgroundColor: '#0e0e11',
     title: 'Neo CMD',
     icon: path.join(__dirname, 'renderer', 'icon.png'),
     titleBarStyle: 'hidden', // as abas ocupam a barra de título (como no Chrome)
-    titleBarOverlay: { color: '#0b0d14', symbolColor: '#d6dbe8', height: 44 },
+    titleBarOverlay: { color: '#0e0e11', symbolColor: '#ecebf0', height: 40 },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
