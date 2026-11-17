@@ -52,6 +52,8 @@
   const tabsEl = $('#tabs'), termsEl = $('#terminals'), claudeStack = $('#claude-stack');
   const sidebar = $('#sidebar'), splitter = $('#splitter'), claudeBtn = $('#toggle-claude');
   let seq = 0, home = '';
+  // Prefixo desta janela nos ids dos terminais: uma aba movida de outra janela nunca colide com as daqui.
+  const WIN_TAG = Math.random().toString(36).slice(2, 7);
   let fontSize = Number(store.get('neo.fontSize', 14)) || 14;
   let defaultShell = store.get('neo.shell', SHELLS[0].key);
   let ntpEnabled = store.get('neo.ntp', true);
@@ -136,7 +138,8 @@
       b.title = `${p}\nClique: abrir aqui · Ctrl+clique ou botão do meio: nova aba · Botão direito: remover`;
       b.addEventListener('mousedown', (e) => {
         e.preventDefault(); // não tira o foco do terminal
-        if (e.button === 1 || (e.button === 0 && e.ctrlKey)) newTab({ cwd: p, ntp: false });
+        if (e.button === 0 && e.shiftKey) openInNewWindow({ cwd: p });
+        else if (e.button === 1 || (e.button === 0 && e.ctrlKey)) newTab({ cwd: p, ntp: false });
         else if (e.button === 0) openFolder(p);
       });
       b.addEventListener('contextmenu', (e) => { e.preventDefault(); toggleBookmark(p); });
@@ -170,6 +173,8 @@
     term.loadAddon(new WebLinksAddon.WebLinksAddon((_e, url) => neo.openExternal(url)));
     // Larguras de caracteres do Unicode 11 (emoji, ícones), as mesmas que o Windows usa: evita prompt desalinhado.
     term.loadAddon(new Unicode11Addon.Unicode11Addon());
+    const serializer = new SerializeAddon.SerializeAddon(); // permite levar a tela junto ao mover a aba de janela
+    term.loadAddon(serializer);
     term.unicode.activeVersion = '11';
     term.open(container);
     term.onData((d) => { onInput?.(d); neo.write(getId(), d); });
@@ -195,7 +200,7 @@
       try { fit.fit(); neo.resize(getId(), term.cols, term.rows); } catch {}
     });
     ro.observe(container);
-    return { term, fit, ro };
+    return { term, fit, ro, serializer };
   }
 
   // Inicia (ou reinicia) o processo de um terminal. `hold`: no cmd, esconde o texto de abertura
@@ -203,7 +208,7 @@
   function spawnPty(owner, kind, cwd, term, distro) {
     owner.gen = (owner.gen || 0) + 1;
     if (owner.ptyId) { neo.kill(owner.ptyId); byPty.delete(owner.ptyId); }
-    owner.ptyId = `${owner.id}.${owner.gen}`;
+    owner.ptyId = `${WIN_TAG}-${owner.id}.${owner.gen}`;
     const entry = { term, owner, hold: null };
     if (isWin && kind === 'cmd') entry.hold = { buf: '', timer: setTimeout(() => release(entry, true), 2500) };
     byPty.set(owner.ptyId, entry);
@@ -264,6 +269,7 @@
     }));
     setKindVisual(tab);
     activate(tab);
+    if (opts.adopt) { adoptPty(tab, opts.adopt); return tab; }
     spawnPty(tab, kind, cwd, tab.term, distro);
     if (opts.run) tab.pending.push(opts.run);
     if (opts.env) applyEnv(tab, opts.env);
@@ -357,15 +363,18 @@
   }
   const focusActive = () => { if (!active) return; if (active.ntp) $('input', active.ntp)?.focus(); else active.term.focus(); };
 
-  function closeTab(tab) {
+  function closeTab(tab, { keepPty = false } = {}) {
     const i = tabs.indexOf(tab);
     if (i < 0) return;
-    closed.push({ kind: tab.kind, distro: tab.distro, cwd: tab.cwd, title: tab.title, envId: tab.envId });
-    if (closed.length > 25) closed.shift();
-    neo.kill(tab.ptyId); byPty.delete(tab.ptyId); tab.ro.disconnect(); tab.term.dispose(); tab.pane.remove();
+    if (!keepPty) {
+      closed.push({ kind: tab.kind, distro: tab.distro, cwd: tab.cwd, title: tab.title, envId: tab.envId });
+      if (closed.length > 25) closed.shift();
+      neo.kill(tab.ptyId);
+    }
+    byPty.delete(tab.ptyId); tab.ro.disconnect(); tab.term.dispose(); tab.pane.remove();
     if (tab.claude) disposeClaude(tab);
     tab.el.remove(); tabs.splice(i, 1);
-    if (!tabs.length) { newTab(); return; }
+    if (!tabs.length) { if (keepPty) window.close(); else newTab(); return; }
     if (active === tab) activate(tabs[Math.min(i, tabs.length - 1)]);
   }
   const cycle = (dir) => tabs.length > 1 && activate(tabs[(tabs.indexOf(active) + dir + tabs.length) % tabs.length]);
@@ -374,11 +383,73 @@
     if (c) newTab({ kind: c.kind, distro: c.distro, cwd: c.cwd, title: c.title, ntp: false }).then((t) => { if (c.envId && envById(c.envId)) { t.envId = c.envId; setKindVisual(t); refreshTab(t); } });
   }
 
+  /* ---------- várias janelas ---------- */
+  // Move a aba para uma janela nova: o terminal continua rodando e a tela vai junto.
+  async function moveToNewWindow(tab, bounds) {
+    if (tab.ntp) hideNtp(tab);
+    const payload = {
+      ptyId: tab.ptyId, kind: tab.kind, distro: tab.distro, cwd: tab.cwd, title: tab.title, custom: tab.custom, envId: tab.envId,
+      history: tab.history, hIndex: tab.hIndex, atPrompt: tab.atPrompt, promptAware: tab.promptAware, visited: tab.visited,
+      buffer: (() => { try { return tab.serializer.serialize({ scrollback: 2000 }); } catch { return ''; } })(), bounds,
+    };
+    const ok = await neo.moveTab(payload);
+    if (!ok) { toast('Não foi possível mover esta aba.'); return; }
+    if (tab.claude) disposeClaude(tab);
+    closeTab(tab, { keepPty: true });
+  }
+  // A janela nova assume o terminal de uma aba movida.
+  function adoptPty(tab, a) {
+    tab.ptyId = a.ptyId; tab.gen = 0;
+    byPty.set(tab.ptyId, { term: tab.term, owner: tab, hold: null });
+    Object.assign(tab, { title: a.title || null, custom: !!a.custom, envId: a.envId || null, history: a.history || [tab.cwd],
+      hIndex: a.hIndex || 0, atPrompt: !!a.atPrompt, promptAware: !!a.promptAware, visited: !!a.visited });
+    if (a.buffer) tab.term.write(a.buffer);
+    if (a.pending) tab.term.write(a.pending);
+    setKindVisual(tab); refreshTab(tab); updateToolbar();
+    requestAnimationFrame(() => { try { tab.fit.fit(); neo.resize(tab.ptyId, tab.term.cols, tab.term.rows); } catch {} });
+  }
+  const duplicateTab = (tab) => newTab({ kind: tab.kind, distro: tab.distro, cwd: tab.cwd, ntp: false }).then((t) => {
+    const env = envById(tab.envId); if (env) { t.envId = env.id; setKindVisual(t); refreshTab(t); }
+  });
+  const closeOthers = (tab) => tabs.filter((t) => t !== tab).forEach((t) => closeTab(t));
+  // Shift+clique: abrir numa janela nova (como num link do navegador).
+  const openInNewWindow = (open) => neo.newWindow(open);
+
+  const tabMenu = h('div', 'menu tab-menu hidden');
+  document.body.appendChild(tabMenu);
+  function openTabMenu(tab, x, y) {
+    tabMenu.innerHTML = '';
+    const add = (label, fn, kbd) => {
+      const b = h('button'); b.appendChild(h('span', null, label));
+      if (kbd) b.appendChild(h('span', 'kbd', kbd));
+      b.onclick = () => { tabMenu.classList.add('hidden'); fn(); };
+      tabMenu.appendChild(b);
+    };
+    add('Mover para nova janela', () => moveToNewWindow(tab));
+    add('Duplicar aba', () => duplicateTab(tab));
+    add('Renomear', () => renameTab(tab), 'duplo clique');
+    tabMenu.appendChild(h('div', 'sep'));
+    if (tabs.length > 1) add('Fechar as outras abas', () => closeOthers(tab));
+    add('Fechar aba', () => closeTab(tab), 'Ctrl+W');
+    tabMenu.style.left = Math.min(x, window.innerWidth - 250) + 'px';
+    tabMenu.style.top = y + 'px';
+    tabMenu.style.right = 'auto';
+    tabMenu.classList.remove('hidden');
+  }
+  document.addEventListener('mousedown', (e) => { if (!e.target.closest('.tab-menu')) tabMenu.classList.add('hidden'); });
+
   let dragged = null;
   function wireDrag(tab) {
     const el = tab.el;
     el.addEventListener('dragstart', (e) => { dragged = tab; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-    el.addEventListener('dragend', () => { dragged = null; tabs.forEach((t) => t.el.classList.remove('dragging', 'drop-before', 'drop-after')); });
+    el.addEventListener('dragend', (e) => {
+      dragged = null; tabs.forEach((t) => t.el.classList.remove('dragging', 'drop-before', 'drop-after'));
+      // Soltou fora da janela: a aba vai para uma janela nova, onde foi solta (como no Chrome).
+      const out = e.screenX < window.screenX || e.screenX > window.screenX + window.outerWidth ||
+        e.screenY < window.screenY || e.screenY > window.screenY + window.outerHeight;
+      if (out && (e.screenX || e.screenY)) moveToNewWindow(tab, { x: e.screenX - 120, y: e.screenY - 20 });
+    });
+    el.addEventListener('contextmenu', (e) => { e.preventDefault(); activate(tab); openTabMenu(tab, e.clientX, e.clientY); });
     el.addEventListener('dragover', (e) => {
       if (!dragged || dragged === tab) return;
       e.preventDefault();
@@ -663,7 +734,8 @@
       row.addEventListener('mousedown', (e) => {
         if (e.target.closest('.ei-edit')) return;
         e.preventDefault();
-        if (e.button === 1 || e.ctrlKey) openEnv(env, { forceNew: true });
+        if (e.button === 0 && e.shiftKey) openInNewWindow({ envId: env.id });
+        else if (e.button === 1 || e.ctrlKey) openEnv(env, { forceNew: true });
         else if (e.button === 0) openEnv(env, { tab });
       });
       list.appendChild(row);
@@ -693,7 +765,8 @@
         item.addEventListener('mousedown', (e) => {
           if (e.target.closest('.si-x')) return;
           e.preventDefault(); // não tira o foco do terminal
-          if (e.button === 1 || e.ctrlKey) newTab({ cwd: p, ntp: false, ...(isWslPath(p) ? { kind: 'wsl', distro: visits[p]?.d } : {}) });
+          if (e.button === 0 && e.shiftKey) openInNewWindow({ cwd: p, ...(isWslPath(p) ? { kind: 'wsl', distro: visits[p]?.d } : {}) });
+          else if (e.button === 1 || e.ctrlKey) newTab({ cwd: p, ntp: false, ...(isWslPath(p) ? { kind: 'wsl', distro: visits[p]?.d } : {}) });
           else if (e.button === 0) openFolder(p, { tab });
         });
         shelf.appendChild(item);
@@ -909,11 +982,12 @@
       const edit = h('button', 'env-edit', '✎'); edit.title = 'Editar';
       edit.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); editEnv(env); });
       row.append(dot, txt, edit);
-      row.title = 'Clique: abrir · Ctrl+clique: abrir em nova aba';
+      row.title = 'Clique: abrir · Ctrl+clique: nova aba · Shift+clique: nova janela';
       row.addEventListener('mousedown', (e) => {
         if (e.target.closest('.env-edit')) return;
         e.preventDefault(); closeEnvPop();
-        openEnv(env, { forceNew: e.button === 1 || e.ctrlKey });
+        if (e.button === 0 && e.shiftKey) openInNewWindow({ envId: env.id });
+        else openEnv(env, { forceNew: e.button === 1 || e.ctrlKey });
       });
       envPop.appendChild(row);
     });
@@ -1130,6 +1204,8 @@
       add('Novo ambiente…', () => editEnv(null, { fromTab: active }), { kbd: 'Ctrl+Shift+E' });
       sep();
     }
+    add('Nova janela', () => openInNewWindow(), { kbd: 'Ctrl+Shift+N' });
+    sep();
     hd('Nova aba');
     SHELLS.forEach((x) => add(x.label, () => newTab({ kind: x.kind, distro: x.distro }), { kbd: x.key === defaultShell ? 'padrão' : '' }));
     add('✦  Claude Code', () => newTab({ kind: 'claude' }));
@@ -1159,7 +1235,7 @@
     const k = e.key.toLowerCase();
     if (e.altKey && !e.ctrlKey && ['arrowleft', 'arrowright', 'arrowup', 'd'].includes(k)) return true;
     if (!e.ctrlKey) return k === 'f6';
-    return ['t', 'w', 'tab', 'l', 'd', '=', '+', '-', '_', '0'].includes(k) || /^[1-9]$/.test(k) || (e.shiftKey && (k === 'b' || k === 'e'));
+    return ['t', 'w', 'tab', 'l', 'd', '=', '+', '-', '_', '0'].includes(k) || /^[1-9]$/.test(k) || (e.shiftKey && (k === 'b' || k === 'e' || k === 'n'));
   }
   window.addEventListener('keydown', (e) => {
     if (!isAppShortcut(e) || e.target.isContentEditable) return;
@@ -1176,6 +1252,7 @@
     else if (k === 'd') toggleBookmark();
     else if (k === 'b') toggleSidebar();
     else if (k === 'e') { if (envPop.classList.contains('hidden')) openEnvPop(); else closeEnvPop(); }
+    else if (k === 'n') openInNewWindow();
     else if (k === '=' || k === '+') setZoom(fontSize + 1);
     else if (k === '-' || k === '_') setZoom(fontSize - 1);
     else if (k === '0') setZoom(14);
@@ -1209,5 +1286,15 @@
     distros.forEach((d) => SHELLS.push({ key: `wsl:${d}`, kind: 'wsl', distro: d, label: `WSL · ${d}`, sub: `wsl.exe -d ${d}` }));
     if (distros.length) refreshNtps();
   }).catch(() => {});
-  neo.home().then((hm) => { home = hm; return newTab(); }).then(() => { if (store.get('neo.sidebar', false)) toggleSidebar(true); });
+  neo.home().then(async (hm) => {
+    home = hm;
+    // Janela aberta para receber uma aba movida, ou para abrir uma pasta/ambiente (Shift+clique).
+    const init = await neo.winInit().catch(() => null);
+    if (init && init.type === 'move') await newTab({ kind: init.kind, distro: init.distro, cwd: init.cwd, ntp: false, adopt: init });
+    else if (init && init.type === 'open') {
+      const env = init.envId && envById(init.envId);
+      if (env) await openEnv(env, { forceNew: true });
+      else await newTab({ kind: init.kind, distro: init.distro, cwd: init.cwd, ntp: !init.cwd });
+    } else await newTab();
+  }).then(() => { if (store.get('neo.sidebar', false)) toggleSidebar(true); });
 })();

@@ -7,8 +7,11 @@ const pty = require('@lydell/node-pty');
 const { autoUpdater } = require('electron-updater');
 
 const isWin = process.platform === 'win32';
-const terminals = new Map(); // id -> pty
-let win;
+// Cada terminal pertence a uma janela: chave "<id da janela>:<id do terminal>" -> { proc, wc, buffer }.
+// Ao mover uma aba para outra janela, wc fica vazio e a saída é guardada em buffer até a janela nova assumir.
+const terminals = new Map();
+const keyOf = (wc, id) => `${wc.id}:${id}`;
+const pendingInit = new Map(); // id da janela nova -> o que ela deve abrir (aba movida ou pasta/ambiente)
 
 /* ---------- Claude Code embutido ---------- */
 function appRoots() {
@@ -102,7 +105,7 @@ function buildEnv() {
   return env;
 }
 
-function spawnTerminal({ id, kind, cwd, distro, cols, rows }) {
+function spawnTerminal(wc, { id, kind, cwd, distro, cols, rows }) {
   const startDir = kind !== 'wsl' && cwd && fs.existsSync(cwd) ? cwd : os.homedir();
   let file, args = [], typed = null;
 
@@ -122,23 +125,62 @@ function spawnTerminal({ id, kind, cwd, distro, cols, rows }) {
     cwd: startDir,
     env: buildEnv(),
   });
-  terminals.set(id, proc);
-  proc.onData((data) => win && !win.isDestroyed() && win.webContents.send('pty:data', id, data));
+  const t = { proc, wc, buffer: null };
+  terminals.set(keyOf(wc, id), t);
+  proc.onData((data) => {
+    if (t.wc && !t.wc.isDestroyed()) t.wc.send('pty:data', id, data);
+    else if (t.buffer) t.buffer.push(data);
+  });
   proc.onExit(({ exitCode }) => {
-    terminals.delete(id);
-    if (win && !win.isDestroyed()) win.webContents.send('pty:exit', id, exitCode);
+    for (const [k, v] of terminals) if (v === t) terminals.delete(k);
+    if (t.wc && !t.wc.isDestroyed()) t.wc.send('pty:exit', id, exitCode);
   });
   if (typed) setTimeout(() => proc.write(typed + '\r'), 150);
 }
 
-ipcMain.handle('pty:create', (_e, opts) => { spawnTerminal(opts); return true; });
-ipcMain.on('pty:write', (_e, id, data) => terminals.get(id)?.write(data));
-ipcMain.on('pty:resize', (_e, id, cols, rows) => {
-  try { terminals.get(id)?.resize(Math.max(cols, 2), Math.max(rows, 1)); } catch {}
+ipcMain.handle('pty:create', (e, opts) => { spawnTerminal(e.sender, opts); return true; });
+ipcMain.on('pty:write', (e, id, data) => terminals.get(keyOf(e.sender, id))?.proc.write(data));
+ipcMain.on('pty:resize', (e, id, cols, rows) => {
+  try { terminals.get(keyOf(e.sender, id))?.proc.resize(Math.max(cols, 2), Math.max(rows, 1)); } catch {}
 });
-ipcMain.on('pty:kill', (_e, id) => {
-  try { terminals.get(id)?.kill(); } catch {}
-  terminals.delete(id);
+ipcMain.on('pty:kill', (e, id) => {
+  const k = keyOf(e.sender, id);
+  try { terminals.get(k)?.proc.kill(); } catch {}
+  terminals.delete(k);
+});
+
+/* ---------- várias janelas ---------- */
+// Nova janela, opcionalmente abrindo uma pasta ou um ambiente.
+ipcMain.handle('win:new', (e, open) => {
+  const w = createWindow(BrowserWindow.fromWebContents(e.sender));
+  if (open) pendingInit.set(w.webContents.id, { type: 'open', ...open });
+  return true;
+});
+// Move uma aba (com o terminal rodando) para uma janela nova.
+ipcMain.handle('tab:move', (e, payload) => {
+  const k = keyOf(e.sender, payload.ptyId);
+  const t = terminals.get(k);
+  if (!t) return false;
+  terminals.delete(k);
+  t.wc = null; t.buffer = [];
+  const w = createWindow(BrowserWindow.fromWebContents(e.sender), payload.bounds);
+  pendingInit.set(w.webContents.id, { type: 'move', payload, term: t });
+  return true;
+});
+// A janela nova pergunta o que deve abrir ao iniciar.
+ipcMain.handle('win:init', (e) => {
+  const init = pendingInit.get(e.sender.id);
+  if (!init) return null;
+  pendingInit.delete(e.sender.id);
+  if (init.type === 'move') {
+    const t = init.term;
+    t.wc = e.sender;
+    terminals.set(keyOf(e.sender, init.payload.ptyId), t);
+    const pending = (t.buffer || []).join('');
+    t.buffer = null;
+    return { type: 'move', ...init.payload, pending };
+  }
+  return init;
 });
 ipcMain.handle('app:home', () => os.homedir());
 ipcMain.handle('wsl:list', () => listWsl());
@@ -227,7 +269,7 @@ ipcMain.handle('fonts:list', () => new Promise((resolve) => {
 let updateState = { state: 'idle' };
 function sendUpdate(patch) {
   updateState = { ...updateState, ...patch, current: app.getVersion() };
-  if (win && !win.isDestroyed()) win.webContents.send('update:state', updateState);
+  for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('update:state', updateState);
 }
 function setupUpdates() {
   if (!app.isPackaged) { updateState = { state: 'dev' }; return; } // só no app instalado
@@ -253,13 +295,18 @@ ipcMain.handle('update:check', async () => {
 ipcMain.on('update:install', () => { if (updateState.state === 'ready') autoUpdater.quitAndInstall(false, true); });
 
 ipcMain.on('app:open-external', (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
-ipcMain.on('app:titlebar', (_e, color, symbolColor) => {
-  try { win?.setTitleBarOverlay({ color, symbolColor, height: 40 }); } catch {}
+ipcMain.on('app:titlebar', (e, color, symbolColor) => {
+  try { BrowserWindow.fromWebContents(e.sender)?.setTitleBarOverlay({ color, symbolColor, height: 40 }); } catch {}
 });
 
-function createWindow() {
-  win = new BrowserWindow({
-    width: 1280, height: 780, minWidth: 640, minHeight: 400,
+// Cria uma janela. Novas janelas abrem deslocadas da atual (em cascata), ou onde a aba foi solta.
+function createWindow(from, at) {
+  let pos = {};
+  if (at && Number.isFinite(at.x)) pos = { x: Math.round(at.x), y: Math.round(at.y) };
+  else if (from && !from.isDestroyed()) { const b = from.getBounds(); pos = { x: b.x + 28, y: b.y + 28 }; }
+  const size = from && !from.isDestroyed() ? from.getBounds() : { width: 1280, height: 780 };
+  const win = new BrowserWindow({
+    width: size.width, height: size.height, ...pos, minWidth: 640, minHeight: 400,
     backgroundColor: '#0e0e11',
     title: 'Neo CMD',
     icon: path.join(__dirname, 'renderer', 'icon.png'),
@@ -273,11 +320,15 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  const wc = win.webContents, wcId = wc.id;
   win.on('closed', () => {
-    for (const p of terminals.values()) try { p.kill(); } catch {}
-    terminals.clear();
-    win = null;
+    // Encerra só os terminais desta janela (e uma aba movida que ela nem chegou a receber).
+    for (const [k, t] of terminals) if (k.startsWith(wcId + ':')) { try { t.proc.kill(); } catch {} terminals.delete(k); }
+    const init = pendingInit.get(wcId);
+    if (init && init.type === 'move') try { init.term.proc.kill(); } catch {}
+    pendingInit.delete(wcId);
   });
+  return win;
 }
 
 app.whenReady().then(() => { createWindow(); setupUpdates(); });

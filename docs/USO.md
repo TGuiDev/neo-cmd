@@ -69,10 +69,17 @@ Ir para uma pasta digita o `cd` correspondente no terminal (`cd /d` no cmd, `Set
 - A barra de favoritos aparece abaixo da barra de endereço quando há pelo menos um.
 - Clique: vai até a pasta. `Ctrl+clique` ou botão do meio: nova aba. Botão direito: remover.
 
+## Janelas
+
+- **Nova janela:** `Ctrl+Shift+N` ou menu **⋮** → *Nova janela*. Cada janela tem as próprias abas; favoritos, ambientes, tema e pastas visitadas são os mesmos em todas.
+- **Shift+clique** num ambiente, numa pasta da página de nova aba ou num favorito abre numa janela nova.
+- **Mover uma aba para outra janela:** arraste a aba para fora da janela (ela abre onde você soltar) ou use o botão direito na aba → *Mover para nova janela*. O terminal continua rodando e o conteúdo da tela vai junto. A conversa do Claude da sidebar daquela aba não é levada.
+
 ## Abas
 
 - **Nova:** `Ctrl+T` ou **+**. **Fechar:** `Ctrl+W`, **✕** ou botão do meio. **Reabrir:** `Ctrl+Shift+T` (até 25).
 - **Alternar:** `Ctrl+Tab` / `Ctrl+Shift+Tab`; `Ctrl+1…8` pelo número, `Ctrl+9` a última.
+- **Botão direito na aba:** mover para nova janela, duplicar, renomear, fechar as outras abas ou fechar.
 - **Reordenar:** arraste. **Renomear:** duplo clique (vazio volta ao nome automático, que é o nome da pasta).
 - **Ocupada:** o ícone vira um indicador de carregamento enquanto um comando roda.
 - **Concluída:** um ponto aparece quando um comando termina numa aba em segundo plano; some ao abrir a aba.
@@ -123,4 +130,4 @@ O app instalado procura versões novas nos Releases do GitHub ao abrir e a cada 
 
 ## Atalhos que o app reserva
 
-`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, `Ctrl+1…9`, `Ctrl+L`, `Ctrl+D`, `Ctrl +/-/0`, `Ctrl+Shift+B`, `Ctrl+Shift+E`, `Alt+←/→/↑`, `Alt+D` e `F6` são do app e **não chegam ao programa no terminal**. Isso inclui o `Ctrl+L` de limpar a tela do Clink e do bash: use o botão ↻ ou `cls`.
+`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, `Ctrl+1…9`, `Ctrl+L`, `Ctrl+D`, `Ctrl +/-/0`, `Ctrl+Shift+B`, `Ctrl+Shift+E`, `Ctrl+Shift+N`, `Alt+←/→/↑`, `Alt+D` e `F6` são do app e **não chegam ao programa no terminal**. Isso inclui o `Ctrl+L` de limpar a tela do Clink e do bash: use o botão ↻ ou `cls`.

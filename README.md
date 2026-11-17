@@ -65,6 +65,7 @@ A pasta atual aparece como uma trilha clicável (`~ › projetos › api`): cliq
 - **Prompts bonitos funcionam:** ícones de Nerd Font (Clink, oh-my-posh, Starship) aparecem mesmo sem fonte especial instalada, faixas do powerline encostam certinho, e você pode usar a mesma fonte do Windows Terminal (*Fonte do terminal…*).
 - **Atualiza sozinho:** baixa versões novas do GitHub em segundo plano e mostra o botão **Atualizar** quando estiver pronta.
 - Abas que se arrastam, fecham com o botão do meio, renomeiam com duplo clique e reabrem com `Ctrl+Shift+T`.
+- **Várias janelas** (`Ctrl+Shift+N`): arraste uma aba para fora e ela vira uma janela nova, com o terminal ainda rodando; `Shift+clique` em pastas e ambientes abre numa janela nova.
 
 ## Claude Code embutido
 
@@ -92,6 +93,7 @@ As distros do WSL instaladas aparecem sozinhas como shells (`WSL · Ubuntu`, por
 | Ação | Atalho |
 |---|---|
 | Nova aba / fechar / reabrir fechada | `Ctrl+T` / `Ctrl+W` / `Ctrl+Shift+T` |
+| Nova janela | `Ctrl+Shift+N` |
 | Alternar abas / ir para a aba N | `Ctrl+Tab` / `Ctrl+1…9` |
 | Barra de endereço | `Ctrl+L`, `Alt+D` ou `F6` |
 | Voltar / avançar / pasta acima | `Alt+←` / `Alt+→` / `Alt+↑` |
