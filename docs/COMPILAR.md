@@ -54,4 +54,5 @@ Também é possível rodar o workflow manualmente (**Actions → Build (Windows)
 ## Observações
 
 - Sem certificado de assinatura, o Windows SmartScreen mostra um aviso na primeira execução.
-- Para usar um ícone próprio, adicione `build/icon.ico` (256×256) e configure `build.win.icon` em `package.json`; remova também `signAndEditExecutable: false` ao compilar no Windows.
+- O ícone do app vem de `build/icon.svg` (desenho original) e `build/icon.png` (512×512, usado pelo electron-builder no executável e no instalador). Ao mudar o SVG, gere o PNG de novo.
+- Gravar o ícone no executável exige o Windows (ou o Wine). Compilando no Linux sem Wine, use `--dir` para testar.

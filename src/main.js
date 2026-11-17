@@ -208,6 +208,7 @@ function createWindow() {
     width: 1280, height: 780, minWidth: 640, minHeight: 400,
     backgroundColor: '#0b0d14',
     title: 'Neo CMD',
+    icon: path.join(__dirname, 'renderer', 'icon.png'),
     titleBarStyle: 'hidden', // as abas ocupam a barra de título (como no Chrome)
     titleBarOverlay: { color: '#0b0d14', symbolColor: '#d6dbe8', height: 44 },
     webPreferences: {

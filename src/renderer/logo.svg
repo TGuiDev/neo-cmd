@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" width="560" height="380">
+  <title>Neo CMD</title>
+  <defs>
+    <linearGradient id="nbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9568f2"/><stop offset="1" stop-color="#774ce0"/></linearGradient>
+    <linearGradient id="nsh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect x="0" y="0" width="560" height="380" rx="44" fill="url(#nbg)"/>
+  <rect x="0" y="0" width="560" height="380" rx="44" fill="url(#nsh)"/>
+  <g fill="none" stroke="#fff" stroke-width="28.2">
+    <path d="M79.8 257.7 V175.0 A38.5 38.5 0 0 1 156.9 175.0 V257.7"/>
+    <path d="M300.8 150.2 A53.6 53.6 0 1 0 307.2 223.0" stroke-linecap="round"/>
+    <path d="M217.7 215.2 L300.8 150.2" stroke-linecap="round"/>
+    <circle cx="426.6" cy="190.0" r="53.6"/>
+  </g>
+</svg>

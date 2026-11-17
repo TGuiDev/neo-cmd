@@ -11,6 +11,7 @@ neo-cmd/
 │       └── renderer.js      # abas, navegação, barra de endereço, nova aba, sidebar, atalhos
 ├── src/clink/neo-cmd.lua    # avisa a pasta atual quando o Clink usa prompt personalizado
 ├── src/renderer/fonts/      # fonte de ícones Nerd Font (reserva)
+├── build/icon.svg, icon.png # logo do app (ícone do executável e do instalador)
 ├── build/bin/claude.cmd     # atalho do `claude` no app empacotado (Windows)
 ├── docs/                    # documentação e imagens
 └── .github/workflows/       # build no Windows e publicação de Releases
@@ -44,4 +45,4 @@ neo-cmd/
 ## Limitações conhecidas
 
 - As sessões abertas não são restauradas ao reabrir o app.
-- O executável não é assinado e usa o ícone padrão do Electron.
+- O executável não é assinado digitalmente.
