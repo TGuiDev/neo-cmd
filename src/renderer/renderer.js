@@ -383,6 +383,19 @@
     if (c) newTab({ kind: c.kind, distro: c.distro, cwd: c.cwd, title: c.title, ntp: false }).then((t) => { if (c.envId && envById(c.envId)) { t.envId = c.envId; setKindVisual(t); refreshTab(t); } });
   }
 
+  /* ---------- menus sempre dentro da janela ---------- */
+  // Limita a altura (com rolagem) e empurra o menu para dentro da tela quando a janela é pequena.
+  function fitMenu(el) {
+    if (el.classList.contains('hidden')) return;
+    el.style.maxHeight = '';
+    const r = el.getBoundingClientRect();
+    const margin = 8;
+    if (r.right > window.innerWidth - margin) el.style.left = Math.max(margin, window.innerWidth - margin - r.width) + 'px';
+    const top = el.getBoundingClientRect().top;
+    el.style.maxHeight = Math.max(120, window.innerHeight - top - margin) + 'px';
+  }
+  window.addEventListener('resize', () => document.querySelectorAll('.menu').forEach((m) => m.classList.add('hidden')));
+
   /* ---------- várias janelas ---------- */
   // Move a aba para uma janela nova: o terminal continua rodando e a tela vai junto.
   async function moveToNewWindow(tab, bounds) {
@@ -435,6 +448,7 @@
     tabMenu.style.top = y + 'px';
     tabMenu.style.right = 'auto';
     tabMenu.classList.remove('hidden');
+    fitMenu(tabMenu);
   }
   document.addEventListener('mousedown', (e) => { if (!e.target.closest('.tab-menu')) tabMenu.classList.add('hidden'); });
 
@@ -996,6 +1010,7 @@
     act('+  Novo ambiente', () => editEnv(null, { fromTab: active }));
     if (active && !active.ntp && active.kind !== 'claude') act('◆  Salvar esta aba como ambiente', () => editEnv(null, { fromTab: active }));
     envPop.classList.toggle('hidden');
+    fitMenu(envPop);
   }
   $('#env-btn').onclick = (e) => { e.stopPropagation(); if (envPop.classList.contains('hidden')) openEnvPop(); else closeEnvPop(); };
   document.addEventListener('mousedown', (e) => { if (!e.target.closest('#env-pop') && !e.target.closest('#env-btn')) closeEnvPop(); });
@@ -1225,6 +1240,7 @@
     if (update.state === 'ready') add(`Atualizar para ${update.version}`, confirmUpdate);
     else add('Procurar atualizações', checkUpdates);
     menu.classList.toggle('hidden');
+    fitMenu(menu);
   }
   $('#menu-btn').onclick = (e) => { e.stopPropagation(); openMenu(); };
   $('#new-tab').onclick = () => newTab();
