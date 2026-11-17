@@ -1,3 +1,6 @@
+/* Ícones de Nerd Font (prompts do Clink, oh-my-posh, Starship...). Usada como reserva quando a fonte principal não tem o ícone. */
+@font-face { font-family:"Symbols Nerd Font Mono"; src:url("fonts/SymbolsNerdFontMono-Regular.ttf") format("truetype"); font-display:block; }
+
 /* ============ temas ============ */
 :root, :root[data-theme="neo"] {
   --bg:#0a0c12; --chrome:#161a28; --chrome-2:#0e111b; --surface:#0f121c; --line:#252a3b; --hover:#1f2435;

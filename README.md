@@ -46,6 +46,7 @@ A pasta atual aparece como uma trilha clicável (`~ › projetos › api`): cliq
 - **Favoritos** (`Ctrl+D` ou ★): as pastas favoritas ganham uma barra própria. Clique para ir, `Ctrl+clique` para abrir em nova aba, botão direito para remover.
 - **Abas que avisam**: enquanto um comando roda, o ícone da aba vira um indicador de carregamento; quando um comando termina numa aba em segundo plano, aparece um ponto, como uma notificação.
 - **Branch do Git** e **shell da aba** sempre visíveis na barra de endereço.
+- **Prompts bonitos funcionam:** ícones de Nerd Font (Clink, oh-my-posh, Starship) aparecem mesmo sem fonte especial instalada, e a barra de endereço acompanha o `cd` também com prompts personalizados do Clink.
 - Abas que se arrastam, fecham com o botão do meio, renomeiam com duplo clique e reabrem com `Ctrl+Shift+T`.
 
 ## Claude Code embutido

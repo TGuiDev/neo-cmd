@@ -16,7 +16,7 @@ Programas empacotados com Electron e que abrem terminais às vezes geram falsos 
 
 ## Apareceu o texto de versão do Windows ou do Clink ao abrir uma aba
 
-O app esconde esse texto no cmd, mas isso depende de o prompt chegar logo. Se o seu cmd tiver um prompt que remove a sequência de pasta atual (alguns temas do Clink fazem isso), o texto é exibido depois de 2,5 s. Nesse caso, abra uma issue contando qual extensão você usa. Para desativar o aviso de atualização do Clink, rode `clink set clink.autoupdate off`.
+O app esconde esse texto no cmd até o primeiro prompt avisar a pasta atual (com o Clink, pelo script `neo-cmd.lua`). Se esse aviso não chegar em 2,5 s, o texto é exibido para não esconder nada por engano. Nesse caso, abra uma issue contando qual extensão ou tema você usa. Para desativar o aviso de atualização do Clink, rode `clink set clink.autoupdate off`.
 
 ## O Claude da sidebar fica numa tela de login ou de tema
 
@@ -24,7 +24,7 @@ O app esconde esse texto no cmd, mas isso depende de o prompt chegar logo. Se o 
 
 ## A sidebar do Claude abriu na pasta errada
 
-A sessão é criada na primeira vez que a sidebar é aberta em cada aba, usando a pasta da aba naquele momento. Use **↻** na sidebar para reiniciar o Claude na pasta atual. No PowerShell, o acompanhamento automático da pasta não existe: vale a pasta de abertura da aba.
+A sessão é criada na primeira vez que a sidebar é aberta em cada aba, usando a pasta da aba naquele momento. Use **↻** na sidebar para reiniciar o Claude na pasta atual.
 
 ## `npm install` falha ao baixar o Electron
 
@@ -34,9 +34,13 @@ O download do Electron vem do GitHub. Em redes com proxy ou firewall, configure 
 
 Alguns atalhos de navegador são reservados pelo app, incluindo `Ctrl+L` (barra de endereço) e `Ctrl+D` (favoritar). Para limpar a tela, use o botão ↻ ou `cls`. Veja [USO.md](USO.md#atalhos-que-o-app-reserva).
 
+## Aparecem quadrados no lugar de ícones do prompt
+
+Prompts do Clink, oh-my-posh e Starship usam ícones de Nerd Font. O Neo CMD já inclui uma fonte só com esses ícones (Symbols Nerd Font), usada quando a fonte principal não tem o ícone. Se você tem uma Nerd Font instalada (por exemplo, CaskaydiaCove Nerd Font ou Cascadia Code NF), ela é usada primeiro. Se ainda aparecer algum quadrado, abra uma issue com uma captura de tela.
+
 ## A barra de endereço não acompanha o `cd` / voltar fica desativado
 
-O app depende de o shell avisar a pasta atual a cada prompt. Isso é configurado automaticamente no cmd, no PowerShell e no bash. Se você usa um prompt personalizado (um tema do Clink, oh-my-posh, Starship), ele pode substituir essa configuração. Abra uma issue informando qual você usa.
+O app depende de o shell avisar a pasta atual a cada prompt. Isso é configurado automaticamente no cmd, no PowerShell e no bash. Com o Clink, o app carrega um script próprio (`neo-cmd.lua`, via `CLINK_PATH`) que faz esse aviso mesmo com prompts personalizados. Se o seu prompt ainda assim não avisar, o app trata a aba como sempre livre: a navegação continua funcionando, mas sem o indicador de comando rodando. Abra uma issue informando qual prompt você usa.
 
 ## Ir para uma pasta abriu uma aba nova em vez de usar a atual
 

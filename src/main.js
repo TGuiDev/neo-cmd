@@ -56,7 +56,13 @@ function buildEnv() {
   const key = Object.keys(env).find((k) => k.toLowerCase() === 'path') || 'PATH';
   env[key] = [...binDirs(), env[key] || ''].join(path.delimiter);
   // Informa o diretório atual ao terminal (OSC 9;9) a cada prompt.
-  if (isWin) env.PROMPT = '$E]9;9;$P$E\\$P$G';
+  if (isWin) {
+    env.PROMPT = '$E]9;9;$P$E\\$P$G';
+    // Clink com prompt personalizado ignora o PROMPT acima: o script neo-cmd.lua faz o mesmo aviso.
+    env.NEO_CMD = '1';
+    const clinkDir = [path.join(process.resourcesPath || '', 'clink'), path.join(__dirname, 'clink')].find((d) => fs.existsSync(d));
+    if (clinkDir) env.CLINK_PATH = [clinkDir, env.CLINK_PATH].filter(Boolean).join(';');
+  }
   else env.PROMPT_COMMAND = 'printf "\\033]9;9;%s\\033\\\\" "$PWD"';
   return env;
 }

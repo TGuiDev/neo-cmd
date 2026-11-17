@@ -105,9 +105,16 @@
   }
 
   /* =================== terminal =================== */
+  // Fontes com ícones (Nerd Fonts) instaladas vêm primeiro; a fonte de ícones embutida cobre o que faltar.
+  const TERM_FONT = ['"CaskaydiaCove Nerd Font Mono"', '"CaskaydiaMono Nerd Font Mono"', '"Cascadia Code NF"', '"Cascadia Mono NF"',
+    '"Cascadia Code"', '"Cascadia Mono"', 'Consolas', '"Symbols Nerd Font Mono"', '"Courier New"', 'monospace'].join(',');
+  // Quando a fonte de ícones termina de carregar, redesenha os terminais já abertos.
+  document.fonts.load('14px "Symbols Nerd Font Mono"', '\ue0b0').then(() => {
+    byPty.forEach(({ term }) => { term.options.fontFamily = TERM_FONT; try { term.refresh(0, term.rows - 1); } catch {} });
+  }).catch(() => {});
   function makeTerm(container, getId, { onPrompt, onTitle, onInput } = {}) {
     const term = new Terminal({
-      theme: xtermTheme(), fontFamily: '"Cascadia Code","Cascadia Mono",Consolas,"Courier New",monospace',
+      theme: xtermTheme(), fontFamily: TERM_FONT,
       fontSize, lineHeight: 1.2, cursorBlink: true, cursorStyle: 'bar', cursorWidth: 2, scrollback: 10000, allowProposedApi: true,
     });
     const fit = new FitAddon.FitAddon();
@@ -219,7 +226,7 @@
   function onPrompt(tab, p) {
     const wasBusy = tab.busy;
     clearTimeout(tab.busyTimer);
-    tab.atPrompt = true; tab.busy = false;
+    tab.atPrompt = true; tab.busy = false; tab.promptAware = true;
     if (p && !samePath(p, tab.cwd)) {
       tab.cwd = p;
       if (tab.navFlag) tab.navFlag = false;
@@ -238,6 +245,7 @@
   }
   function markBusy(tab) {
     tab.atPrompt = false;
+    if (!tab.promptAware) return; // sem aviso de prompt, não há como saber quando o comando termina
     clearTimeout(tab.busyTimer);
     tab.busyTimer = setTimeout(() => {
       if (tab.atPrompt) return;
@@ -326,6 +334,8 @@
   }
 
   /* =================== navegação =================== */
+  // Livre = no prompt. Se o shell nunca avisou o prompt (prompt personalizado sem suporte), assume livre.
+  const isFree = (tab) => tab.atPrompt || !tab.promptAware;
   const quote = (kind, p) => {
     if (kind === 'cmd') return `cd /d "${p}"`;
     if (kind === 'powershell' || kind === 'pwsh') return `Set-Location -LiteralPath '${p.replace(/'/g, "''")}'`;
@@ -335,7 +345,7 @@
   function openFolder(p, { fromHistory = false, tab = active } = {}) {
     if (!p) return;
     if (tab.ntp) { hideNtp(tab, { respawnIn: p }); return; }
-    if (tab.kind === 'claude' || !tab.atPrompt) { newTab({ cwd: p, ntp: false }); return; }
+    if (tab.kind === 'claude' || !isFree(tab)) { newTab({ cwd: p, ntp: false }); return; }
     if (samePath(p, tab.cwd)) { focusActive(); return; }
     tab.navFlag = fromHistory;
     runIn(tab, quote(tab.kind, p));
@@ -343,20 +353,20 @@
   }
   function runIn(tab, cmd) {
     if (tab.ntp) hideNtp(tab);
-    if (!tab.atPrompt) { tab.pending.push(cmd); return; }
+    if (!isFree(tab)) { tab.pending.push(cmd); return; }
     neo.write(tab.ptyId, cmd + '\r');
     markBusy(tab);
   }
   function runCommand(cmd) {
     const tab = active;
     if (tab.kind === 'claude') { newTab({ cwd: tab.cwd, run: cmd, ntp: false }); return; }
-    if (tab.ntp) { hideNtp(tab); tab.pending.push(cmd); if (tab.atPrompt) onPromptFlush(tab); focusActive(); return; }
-    if (!tab.atPrompt && tab.visited) { newTab({ cwd: tab.cwd, run: cmd, ntp: false }); return; }
+    if (tab.ntp) { hideNtp(tab); tab.pending.push(cmd); if (isFree(tab)) onPromptFlush(tab); focusActive(); return; }
+    if (!isFree(tab) && tab.visited) { newTab({ cwd: tab.cwd, run: cmd, ntp: false }); return; }
     runIn(tab, cmd); focusActive();
   }
   const onPromptFlush = (tab) => { const next = tab.pending.shift(); if (next) runIn(tab, next); };
-  function goBack() { const t = active; if (t.hIndex > 0 && t.atPrompt) { t.hIndex--; openFolder(t.history[t.hIndex], { fromHistory: true }); updateToolbar(); } }
-  function goForward() { const t = active; if (t.hIndex < t.history.length - 1 && t.atPrompt) { t.hIndex++; openFolder(t.history[t.hIndex], { fromHistory: true }); updateToolbar(); } }
+  function goBack() { const t = active; if (t.hIndex > 0 && isFree(t)) { t.hIndex--; openFolder(t.history[t.hIndex], { fromHistory: true }); updateToolbar(); } }
+  function goForward() { const t = active; if (t.hIndex < t.history.length - 1 && isFree(t)) { t.hIndex++; openFolder(t.history[t.hIndex], { fromHistory: true }); updateToolbar(); } }
   async function goUp() { const p = await neo.parent(active.cwd); if (p) openFolder(p); }
 
   /* =================== barra de ferramentas =================== */
@@ -366,8 +376,8 @@
     const t = active;
     if (!t) return;
     const shellTab = t.kind !== 'claude' && !t.ntp;
-    $('#nav-back').disabled = !(shellTab && t.atPrompt && t.hIndex > 0);
-    $('#nav-fwd').disabled = !(shellTab && t.atPrompt && t.hIndex < t.history.length - 1);
+    $('#nav-back').disabled = !(shellTab && isFree(t) && t.hIndex > 0);
+    $('#nav-fwd').disabled = !(shellTab && isFree(t) && t.hIndex < t.history.length - 1);
     $('#nav-up').disabled = !(t.cwd && t.kind !== 'claude');
     $('#nav-clear').disabled = !!t.ntp;
     const chip = $('#omni-chip');
@@ -615,7 +625,7 @@
     if ((respawnIn && !samePath(respawnIn, tab.cwd)) || newKind !== tab.kind) {
       tab.kind = newKind; setKindVisual(tab);
       tab.cwd = respawnIn || tab.cwd; tab.history = [tab.cwd]; tab.hIndex = 0;
-      tab.atPrompt = false; tab.visited = false; tab.term.reset();
+      tab.atPrompt = false; tab.visited = false; tab.promptAware = false; tab.term.reset();
       spawnPty(tab, tab.kind, tab.cwd, tab.term);
       if (tab.kind === 'claude') recordVisit(tab.cwd);
     }
