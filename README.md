@@ -4,7 +4,7 @@
 
 <p align="center">
   <b>Um terminal para Windows que navega como o seu navegador.</b><br/>
-  Abas, barra de endereço, voltar e avançar, favoritos, página de nova aba e o Claude Code embutido.
+  Abas, barra de endereço, voltar e avançar, favoritos, ambientes de trabalho, WSL e o Claude Code embutido.
 </p>
 
 <p align="center">
@@ -21,9 +21,24 @@ Você já sabe usar um navegador. O Neo CMD leva esse jeito de navegar para o te
 
 ## Página de nova aba
 
-<p align="center"><img src="docs/images/ntp.png" alt="Página de nova aba com relógio, busca, favoritos e pastas mais visitadas" width="900" /></p>
+<p align="center"><img src="docs/images/ntp.png" alt="Página de nova aba com ambientes de trabalho, favoritos e pastas em 3D" width="900" /></p>
 
-Toda aba nova começa aqui, como no navegador: suas pastas **favoritas** e as **mais visitadas** em blocos, uma busca que entende pastas, comandos e perguntas, e atalhos para abrir com cmd, PowerShell ou o Claude. Clique num bloco e o terminal já abre naquela pasta, sem nenhum `cd` digitado.
+Toda aba nova começa aqui, como no navegador: seus **ambientes de trabalho**, as pastas **favoritas** e as **mais visitadas** em pastinhas 3D (passe o mouse e a pasta abre), uma busca que entende pastas, comandos e perguntas, e atalhos para abrir com cmd, PowerShell, WSL ou o Claude. Clique e o terminal já abre ali, sem nenhum `cd` digitado.
+
+## Ambientes de trabalho
+
+<p align="center">
+  <img src="docs/images/env-editor.png" alt="Formulário de ambiente: nome, cor, shell, pasta e comandos ao abrir" width="49%" />
+  <img src="docs/images/env-picker.png" alt="Seletor de ambientes na barra de ferramentas" width="49%" />
+</p>
+
+Mexe em vários projetos ao mesmo tempo? Salve cada um como um **ambiente**: nome, cor, shell (cmd, PowerShell ou **WSL com a distro que você escolher**), pasta, comandos ao abrir (por exemplo `rbenv shell 3.3.0` e `bundle install`) e, se quiser, a sidebar do Claude já aberta. Depois é só selecionar:
+
+- botão **Ambientes** na barra de ferramentas (`Ctrl+Shift+E`);
+- cartões na página de nova aba;
+- `@nome` na barra de endereço.
+
+A aba ganha a cor e o nome do ambiente, e os comandos rodam em ordem, um depois do outro. "Salvar esta aba como ambiente" já preenche shell e pasta a partir da aba atual.
 
 ## Barra de endereço
 
@@ -36,7 +51,8 @@ A pasta atual aparece como uma trilha clicável (`~ › projetos › api`): cliq
 | um caminho (`C:\projetos`, `..\site`, `~\Downloads`) | vai até a pasta, com autocompletar de subpastas (`Tab` completa) |
 | um comando (`npm test`) | executa na aba atual (ou numa aba nova, se a atual estiver ocupada) |
 | `?` + pergunta (`?por que esse build falha`) | abre a sidebar e manda a pergunta para o Claude Code |
-| `>` + ação (`>tema`) | ações do app: temas, shells, fonte, favoritos |
+| `@` + nome (`@loja`) | abre um ambiente de trabalho (ou cria um novo com esse nome) |
+| `>` + ação (`>tema`) | ações do app: temas, shells, ambientes, fonte, favoritos |
 
 ## Navegue como no navegador
 
@@ -62,9 +78,13 @@ O Claude Code vem dentro do app. Abra a sidebar com **✦ Claude** (`Ctrl+Shift+
   <img src="docs/images/theme-dracula.png" alt="Tema Drácula" width="49%" />
 </p>
 
-Neo Escuro, Meia-noite, Drácula e Claro, no menu **⋮**. Tema, fonte, favoritos e pastas visitadas ficam salvos.
+Neo Escuro, Meia-noite, Drácula e Claro, no menu **⋮**. Tema, fonte, favoritos, ambientes e pastas visitadas ficam salvos.
 
-> Todas as imagens são capturas reais do app, feitas no Linux. No Windows, os shells são cmd, PowerShell e pwsh.
+## WSL
+
+As distros do WSL instaladas aparecem sozinhas como shells (`WSL · Ubuntu`, por exemplo): no menu, na página de nova aba e nos ambientes. A barra de endereço acompanha o `cd` dentro do Linux, completa pastas da distro e mostra a branch do Git; pastas do WSL visitadas aparecem com um pinguim e reabrem no WSL.
+
+> Todas as imagens são capturas reais do app, feitas no Linux. No Windows, os shells são cmd, PowerShell, pwsh e as distros do WSL.
 
 ## Atalhos
 
@@ -75,6 +95,7 @@ Neo Escuro, Meia-noite, Drácula e Claro, no menu **⋮**. Tema, fonte, favorito
 | Barra de endereço | `Ctrl+L`, `Alt+D` ou `F6` |
 | Voltar / avançar / pasta acima | `Alt+←` / `Alt+→` / `Alt+↑` |
 | Favoritar a pasta | `Ctrl+D` |
+| Ambientes de trabalho | `Ctrl+Shift+E` |
 | Sidebar do Claude | `Ctrl+Shift+B` |
 | Fonte maior / menor / padrão | `Ctrl +` / `Ctrl -` / `Ctrl 0` |
 | Copiar / colar | `Ctrl+C` com seleção, `Ctrl+Shift+C/V`, botão direito |

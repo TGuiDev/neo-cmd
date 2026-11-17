@@ -11,6 +11,34 @@ Toda aba nova abre numa página como a do navegador:
 
 Para desligar a página, use o menu **⋮** → *Página de nova aba*.
 
+## Ambientes de trabalho
+
+Um ambiente guarda tudo o que você precisa para entrar num projeto:
+
+| Campo | Para quê |
+|---|---|
+| Nome e cor | aparecem na aba, no botão de ambientes e nos cartões |
+| Shell | cmd, PowerShell, pwsh ou uma distro do WSL |
+| Pasta | onde o terminal abre (no WSL, caminho do Linux, como `/home/voce/projetos/loja` ou `~`) |
+| Comandos ao abrir | um por linha; rodam em ordem, cada um quando o anterior termina |
+| Sidebar do Claude | abre a sidebar junto, já na pasta do projeto |
+
+**Criar:** botão **Ambientes** → *Novo ambiente*, o cartão **+** da página de nova aba, `@nome` na barra de endereço, ou *Salvar esta aba como ambiente* (preenche shell e pasta a partir da aba atual).
+
+**Abrir:** clique no ambiente (botão **Ambientes**, `Ctrl+Shift+E`, cartão da página de nova aba ou `@nome`). Na página de nova aba ele usa a própria aba; nos outros lugares abre uma aba nova. `Ctrl+clique` ou botão do meio sempre abre em aba nova.
+
+**Editar ou excluir:** o lápis ✎ no cartão ou no seletor. Excluir pede confirmação.
+
+## WSL
+
+As distros instaladas aparecem como shells (`WSL · Ubuntu`). Dentro do WSL, a barra de endereço acompanha o `cd`, completa as pastas do Linux e mostra a branch do Git. Ir para uma pasta do Windows numa aba WSL digita o caminho equivalente (`/mnt/c/...`); abrir uma pasta do WSL a partir de outra aba abre uma aba WSL.
+
+O aviso da pasta atual vem do `PROMPT_COMMAND`, que o app passa ao Linux pelo `WSLENV`. Se o seu `.bashrc` definir o próprio `PROMPT_COMMAND` (alguns temas fazem isso), acrescente ao final dele:
+
+```bash
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND; }"'printf "\033]9;9;%s\033\\" "$PWD"'
+```
+
 ## Barra de endereço
 
 Mostra o shell da aba (com um ponto verde quando está livre e pulsando quando um comando roda), a pasta atual como trilha clicável, a branch do Git e a estrela de favorito.
@@ -20,7 +48,8 @@ Clique nela (ou `Ctrl+L`, `Alt+D`, `F6`) para digitar:
 - **Caminho** (`C:\projetos`, `..`, `~\Downloads`, `.\src`): sugere as subpastas enquanto você digita; `Tab` completa a sugestão selecionada; `Enter` vai até a pasta.
 - **Comando:** `Enter` executa na aba atual. Se a aba estiver ocupada com outro comando, ele roda numa aba nova, na mesma pasta.
 - **`?pergunta`:** abre a sidebar do Claude nesta aba e envia a pergunta.
-- **`>ação`:** ações do app (novas abas, temas, fonte, favoritos, reabrir aba).
+- **`@nome`:** abre um ambiente de trabalho (ou cria um com esse nome).
+- **`>ação`:** ações do app (novas abas, ambientes, temas, fonte, favoritos, reabrir aba).
 - Com o campo vazio, ele sugere as pastas mais visitadas.
 
 `↑`/`↓` escolhem a sugestão, `Ctrl+Enter` abre a pasta sugerida numa aba nova e `Esc` cancela.
@@ -85,4 +114,4 @@ O Claude Code pede para confirmar se você confia na pasta, escolher um tema e f
 
 ## Atalhos que o app reserva
 
-`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, `Ctrl+1…9`, `Ctrl+L`, `Ctrl+D`, `Ctrl +/-/0`, `Ctrl+Shift+B`, `Alt+←/→/↑`, `Alt+D` e `F6` são do app e **não chegam ao programa no terminal**. Isso inclui o `Ctrl+L` de limpar a tela do Clink e do bash: use o botão ↻ ou `cls`.
+`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, `Ctrl+1…9`, `Ctrl+L`, `Ctrl+D`, `Ctrl +/-/0`, `Ctrl+Shift+B`, `Ctrl+Shift+E`, `Alt+←/→/↑`, `Alt+D` e `F6` são do app e **não chegam ao programa no terminal**. Isso inclui o `Ctrl+L` de limpar a tela do Clink e do bash: use o botão ↻ ou `cls`.

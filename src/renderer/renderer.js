@@ -30,20 +30,30 @@
     return { background: t.bg, foreground: t.fg, cursor: t.accent, cursorAccent: t.bg, selectionBackground: t.sel, ...t.ansi };
   };
 
+  // Cada shell tem uma chave: 'cmd', 'powershell', 'pwsh', 'default' ou 'wsl:<distro>'.
   const SHELLS = isWin
-    ? [{ id: 'cmd', label: 'Prompt de Comando', sub: 'cmd.exe' }, { id: 'powershell', label: 'Windows PowerShell', sub: 'powershell.exe' },
-       { id: 'pwsh', label: 'PowerShell 7', sub: 'pwsh.exe' }]
-    : [{ id: 'default', label: 'Shell padrão', sub: 'bash/zsh' }];
-  const KIND_LABEL = { cmd: 'cmd', powershell: 'PowerShell', pwsh: 'PowerShell 7', claude: 'Claude', default: 'shell' };
-  const KIND_ICON = { cmd: '>_', powershell: 'PS', pwsh: 'PS', claude: '✦', default: '$_' };
+    ? [{ key: 'cmd', kind: 'cmd', label: 'Prompt de Comando', sub: 'cmd.exe' },
+       { key: 'powershell', kind: 'powershell', label: 'Windows PowerShell', sub: 'powershell.exe' },
+       { key: 'pwsh', kind: 'pwsh', label: 'PowerShell 7', sub: 'pwsh.exe' }]
+    : [{ key: 'default', kind: 'default', label: 'Shell padrão', sub: 'bash/zsh' }];
+  let wslDefault = null;
+  const KIND_LABEL = { cmd: 'cmd', powershell: 'PowerShell', pwsh: 'PowerShell 7', claude: 'Claude', default: 'shell', wsl: 'WSL' };
+  const KIND_ICON = { cmd: '>_', powershell: 'PS', pwsh: 'PS', claude: '✦', default: '$_', wsl: '🐧' };
+  const shellOf = (key) => {
+    const found = SHELLS.find((x) => x.key === key);
+    if (found) return { kind: found.kind, distro: found.distro };
+    if (key && key.startsWith('wsl:')) return { kind: 'wsl', distro: key.slice(4) };
+    return { kind: SHELLS[0].kind, distro: undefined };
+  };
+  const shellKey = (kind, distro) => (kind === 'wsl' ? `wsl:${distro || wslDefault || ''}` : kind);
+  const kindLabel = (kind, distro) => (kind === 'wsl' ? distro || wslDefault || 'WSL' : KIND_LABEL[kind] || 'shell');
 
   /* =================== estado =================== */
   const tabsEl = $('#tabs'), termsEl = $('#terminals'), claudeStack = $('#claude-stack');
   const sidebar = $('#sidebar'), splitter = $('#splitter'), claudeBtn = $('#toggle-claude');
   let seq = 0, home = '';
   let fontSize = Number(store.get('neo.fontSize', 14)) || 14;
-  let defaultShell = store.get('neo.shell', SHELLS[0].id);
-  if (!SHELLS.some((s) => s.id === defaultShell)) defaultShell = SHELLS[0].id;
+  let defaultShell = store.get('neo.shell', SHELLS[0].key);
   let ntpEnabled = store.get('neo.ntp', true);
   const tabs = [];
   const byPty = new Map();   // ptyId -> { term, hold, owner }
@@ -55,17 +65,25 @@
   const baseName = (p) => (p || '').split(/[\\/]/).filter(Boolean).pop() || p || '';
   const samePath = (a, b) => !!a && !!b && (isWin ? a.toLowerCase() === b.toLowerCase() : a === b);
   const underHome = (p) => home && p && (isWin ? p.toLowerCase().startsWith(home.toLowerCase()) : p.startsWith(home));
-  const shortPath = (p) => (underHome(p) ? '~' + p.slice(home.length) : p || '');
+  const isPosixPath = (p) => typeof p === 'string' && p.startsWith('/');
+  // No Windows, caminhos Linux (/home/...) são do WSL.
+  const isWslPath = (p) => isWin && isPosixPath(p);
+  const winToWsl = (p) => p.replace(/^([a-zA-Z]):[\\/]?/, (_, d) => `/mnt/${d.toLowerCase()}/`).replace(/\\/g, '/');
+  const shortPath = (p) => {
+    if (underHome(p)) return '~' + p.slice(home.length);
+    if (isWslPath(p)) return p.replace(/^\/home\/[^/]+/, '~');
+    return p || '';
+  };
   const looksLikePath = (q) => /^([a-zA-Z]:|~|\.{1,2}($|[\\/])|[\\/])/.test(q);
   function hue(str) { let x = 0; for (const c of str || '') x = (x * 31 + c.charCodeAt(0)) >>> 0; return x % 360; }
   const monoBg = (p) => { const a = hue(p); return `linear-gradient(135deg,hsl(${a} 70% 58%),hsl(${(a + 40) % 360} 70% 46%))`; };
 
   /* ---------- pastas visitadas (para "Mais visitadas") ---------- */
   let visits = store.get('neo.visits', {});
-  function recordVisit(p) {
+  function recordVisit(p, distro) {
     if (!p) return;
     const v = visits[p] || { n: 0, t: 0 };
-    v.n++; v.t = Date.now(); visits[p] = v;
+    v.n++; v.t = Date.now(); if (distro) v.d = distro; visits[p] = v;
     const keys = Object.keys(visits);
     if (keys.length > 200) keys.sort((a, b) => visits[a].t - visits[b].t).slice(0, keys.length - 200).forEach((k) => delete visits[k]);
     store.set('neo.visits', visits);
@@ -73,6 +91,30 @@
   const frecent = () => Object.entries(visits)
     .map(([p, v]) => ({ path: p, score: v.n / (1 + (Date.now() - v.t) / 3.6e6 / 72) }))
     .sort((a, b) => b.score - a.score).map((x) => x.path);
+
+  /* ---------- ambientes de trabalho ---------- */
+  // Um ambiente guarda shell, pasta, comandos ao abrir e cor de um projeto, para abrir com um clique.
+  const ENV_COLORS = ['#7c9cff', '#b38cff', '#ff79c6', '#ff6b81', '#ff9a4d', '#f5c451', '#4fd08a', '#3dd6f5'];
+  let envs = store.get('neo.envs', []);
+  const saveEnvs = () => { store.set('neo.envs', envs); renderEnvButton(); };
+  const envById = (id) => envs.find((e) => e.id === id);
+  const envSub = (env) => { const sh = shellOf(env.shell); return `${kindLabel(sh.kind, sh.distro)} · ${shortPath(env.cwd)}`; };
+
+  /* ---------- pasta 3D ---------- */
+  const FOLDER_COLORS = ['#f5b942', '#5b9dff', '#3ccf91', '#a77bff', '#ff7aa8', '#ff9a4d', '#38c6e0'];
+  const folderColor = (p) => FOLDER_COLORS[hue(p) % FOLDER_COLORS.length];
+  function folder3d(color, glyph = '') {
+    const f = h('div', 'folder3d');
+    f.style.setProperty('--c', color);
+    f.append(h('div', 'back'), h('div', 'paper'), h('div', 'front', glyph));
+    return f;
+  }
+  const miniFolder = (color) => {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 16 16'); s.setAttribute('width', '15'); s.setAttribute('height', '15');
+    s.innerHTML = `<path d="M1.5 4a1 1 0 0 1 1-1h3.6l1.4 1.5h6a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1Z" fill="${color}" opacity=".55"/><path d="M1.5 6.2a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1Z" fill="${color}"/>`;
+    return s;
+  };
 
   /* ---------- favoritos ---------- */
   let bookmarks = store.get('neo.bookmarks', []);
@@ -90,9 +132,7 @@
     bar.classList.toggle('hidden', bookmarks.length === 0);
     bookmarks.forEach((p) => {
       const b = h('div', 'bm');
-      const ico = h('span', 'bm-ico', baseName(p).charAt(0).toUpperCase());
-      ico.style.background = monoBg(p);
-      b.append(ico, h('span', null, baseName(p)));
+      b.append(miniFolder(folderColor(p)), h('span', null, baseName(p)));
       b.title = `${p}\nClique: abrir aqui · Ctrl+clique ou botão do meio: nova aba · Botão direito: remover`;
       b.addEventListener('mousedown', (e) => {
         e.preventDefault(); // não tira o foco do terminal
@@ -149,7 +189,7 @@
 
   // Inicia (ou reinicia) o processo de um terminal. `hold`: no cmd, esconde o texto de abertura
   // (versão do Windows, Clink...) até o primeiro prompt.
-  function spawnPty(owner, kind, cwd, term) {
+  function spawnPty(owner, kind, cwd, term, distro) {
     owner.gen = (owner.gen || 0) + 1;
     if (owner.ptyId) { neo.kill(owner.ptyId); byPty.delete(owner.ptyId); }
     owner.ptyId = `${owner.id}.${owner.gen}`;
@@ -157,7 +197,7 @@
     if (isWin && kind === 'cmd') entry.hold = { buf: '', timer: setTimeout(() => release(entry, true), 2500) };
     byPty.set(owner.ptyId, entry);
     owner.startedAt = Date.now();
-    neo.create({ id: owner.ptyId, kind, cwd, cols: term.cols, rows: term.rows });
+    neo.create({ id: owner.ptyId, kind, cwd, distro, cols: term.cols, rows: term.rows });
   }
   function release(entry, all) {
     const hd = entry.hold;
@@ -179,13 +219,16 @@
   /* =================== abas =================== */
   async function newTab(opts = {}) {
     if (!home) home = await neo.home();
-    const kind = opts.kind || defaultShell;
-    const cwd = opts.cwd || (active && active.cwd) || home;
+    const sh = opts.kind ? { kind: opts.kind, distro: opts.distro } : shellOf(defaultShell);
+    const kind = sh.kind, distro = sh.distro;
+    let cwd = opts.cwd || (active && active.cwd) || home;
+    // Caminho do WSL numa aba que não é WSL (ou vice-versa): começa na pasta pessoal.
+    if (kind !== 'wsl' && kind !== 'claude' && isWslPath(cwd)) cwd = home;
     const id = 't' + ++seq;
     const pane = h('div', 'term-pane');
     termsEl.appendChild(pane);
     const tab = {
-      id, kind, cwd, pane, title: opts.title || null, custom: !!opts.title, claude: null,
+      id, kind, distro, cwd, pane, title: opts.title || null, custom: !!opts.title, claude: null,
       history: [cwd], hIndex: 0, atPrompt: false, busy: false, pending: [], navFlag: false,
     };
     const el = h('div', 'tab');
@@ -210,8 +253,9 @@
     }));
     setKindVisual(tab);
     activate(tab);
-    spawnPty(tab, kind, cwd, tab.term);
+    spawnPty(tab, kind, cwd, tab.term, distro);
     if (opts.run) tab.pending.push(opts.run);
+    if (opts.env) applyEnv(tab, opts.env);
     if (kind !== 'claude' && ntpEnabled && opts.ntp !== false) showNtp(tab);
     refreshTab(tab);
     return tab;
@@ -220,6 +264,9 @@
   function setKindVisual(tab) {
     tab.el.dataset.kind = tab.kind;
     tab.el.querySelector('.fav').textContent = KIND_ICON[tab.kind] || '$_';
+    const env = envById(tab.envId);
+    tab.el.classList.toggle('env', !!env);
+    if (env) tab.el.style.setProperty('--env', env.color);
   }
 
   // Cada prompt novo informa a pasta atual: atualiza aba, histórico, favoritos e visitas.
@@ -233,8 +280,8 @@
       else if (!samePath(tab.history[tab.hIndex], p)) {
         tab.history = tab.history.slice(0, tab.hIndex + 1); tab.history.push(p); tab.hIndex = tab.history.length - 1;
       }
-      recordVisit(p);
-    } else if (p && !tab.visited) { tab.cwd = p; recordVisit(p); }
+      recordVisit(p, tab.distro);
+    } else if (p && !tab.visited) { tab.cwd = p; recordVisit(p, tab.distro); }
     tab.visited = true;
     tab.el.classList.remove('busy');
     if (wasBusy && tab !== active) tab.el.classList.add('done');
@@ -273,6 +320,8 @@
   function labelOf(tab) {
     if (tab.title) return tab.title;
     if (tab.ntp) return 'Nova aba';
+    const env = envById(tab.envId);
+    if (env) return env.name;
     if (tab.kind === 'claude') return 'Claude';
     return baseName(tab.cwd) || tab.termTitle || KIND_LABEL[tab.kind];
   }
@@ -300,7 +349,7 @@
   function closeTab(tab) {
     const i = tabs.indexOf(tab);
     if (i < 0) return;
-    closed.push({ kind: tab.kind, cwd: tab.cwd, title: tab.title });
+    closed.push({ kind: tab.kind, distro: tab.distro, cwd: tab.cwd, title: tab.title, envId: tab.envId });
     if (closed.length > 25) closed.shift();
     neo.kill(tab.ptyId); byPty.delete(tab.ptyId); tab.ro.disconnect(); tab.term.dispose(); tab.pane.remove();
     if (tab.claude) disposeClaude(tab);
@@ -309,7 +358,10 @@
     if (active === tab) activate(tabs[Math.min(i, tabs.length - 1)]);
   }
   const cycle = (dir) => tabs.length > 1 && activate(tabs[(tabs.indexOf(active) + dir + tabs.length) % tabs.length]);
-  function reopenClosed() { const c = closed.pop(); if (c) newTab({ kind: c.kind, cwd: c.cwd, title: c.title, ntp: false }); }
+  function reopenClosed() {
+    const c = closed.pop();
+    if (c) newTab({ kind: c.kind, distro: c.distro, cwd: c.cwd, title: c.title, ntp: false }).then((t) => { if (c.envId && envById(c.envId)) { t.envId = c.envId; setKindVisual(t); refreshTab(t); } });
+  }
 
   let dragged = null;
   function wireDrag(tab) {
@@ -337,6 +389,7 @@
   // Livre = no prompt. Se o shell nunca avisou o prompt (prompt personalizado sem suporte), assume livre.
   const isFree = (tab) => tab.atPrompt || !tab.promptAware;
   const quote = (kind, p) => {
+    if (kind === 'wsl') { const lp = isPosixPath(p) ? p : winToWsl(p); return `cd '${lp.replace(/'/g, `'\\''`)}'`; }
     if (kind === 'cmd') return `cd /d "${p}"`;
     if (kind === 'powershell' || kind === 'pwsh') return `Set-Location -LiteralPath '${p.replace(/'/g, "''")}'`;
     return `cd '${p.replace(/'/g, `'\\''`)}'`;
@@ -344,6 +397,13 @@
   // Vai para uma pasta: na aba atual se o shell estiver livre; senão, numa aba nova (como o navegador).
   function openFolder(p, { fromHistory = false, tab = active } = {}) {
     if (!p) return;
+    // Pasta do WSL fora de uma aba WSL: abre como WSL (na distro em que ela foi visitada).
+    if (isWslPath(p) && tab.kind !== 'wsl') {
+      const distro = visits[p]?.d;
+      if (tab.ntp) hideNtp(tab, { respawnIn: p, kind: 'wsl', distro });
+      else newTab({ kind: 'wsl', distro, cwd: p, ntp: false });
+      return;
+    }
     if (tab.ntp) { hideNtp(tab, { respawnIn: p }); return; }
     if (tab.kind === 'claude' || !isFree(tab)) { newTab({ cwd: p, ntp: false }); return; }
     if (samePath(p, tab.cwd)) { focusActive(); return; }
@@ -360,8 +420,8 @@
   function runCommand(cmd) {
     const tab = active;
     if (tab.kind === 'claude') { newTab({ cwd: tab.cwd, run: cmd, ntp: false }); return; }
+    if (!isFree(tab) && tab.visited) { newTab({ kind: tab.kind, distro: tab.distro, cwd: tab.cwd, run: cmd, ntp: false }); return; }
     if (tab.ntp) { hideNtp(tab); tab.pending.push(cmd); if (isFree(tab)) onPromptFlush(tab); focusActive(); return; }
-    if (!isFree(tab) && tab.visited) { newTab({ cwd: tab.cwd, run: cmd, ntp: false }); return; }
     runIn(tab, cmd); focusActive();
   }
   const onPromptFlush = (tab) => { const next = tab.pending.shift(); if (next) runIn(tab, next); };
@@ -381,13 +441,14 @@
     $('#nav-up').disabled = !(t.cwd && t.kind !== 'claude');
     $('#nav-clear').disabled = !!t.ntp;
     const chip = $('#omni-chip');
-    chip.textContent = t.ntp ? 'Nova aba' : KIND_LABEL[t.kind];
+    chip.textContent = t.ntp ? 'Nova aba' : kindLabel(t.kind, t.distro);
     chip.classList.toggle('busy', !!t.busy);
     $('#omni-star').classList.toggle('on', isBookmarked(t.cwd));
     renderCrumbs(t.cwd);
+    renderEnvButton();
     $('#sidebar-cwd').textContent = shortPath(t.cwd);
     const my = ++gitSeq, git = $('#omni-git');
-    neo.gitBranch(t.cwd).then((b) => { if (my !== gitSeq) return; git.classList.toggle('hidden', !b); git.textContent = b ? '⎇ ' + b : ''; });
+    neo.gitBranch(t.cwd, t.distro).then((b) => { if (my !== gitSeq) return; git.classList.toggle('hidden', !b); git.textContent = b ? '⎇ ' + b : ''; });
   }
   function renderCrumbs(p) {
     crumbs.innerHTML = '';
@@ -424,8 +485,13 @@
   }
 
   /* ---------- sugestões (barra de endereço e página de nova aba) ---------- */
+  const envSug = (env, q) => ({ ico: '◆', cls: 'env', color: env.color, title: env.name, sub: `Ambiente · ${envSub(env)}`, q,
+    run: () => openEnv(env), alt: () => openEnv(env, { forceNew: true }) });
   const ACTIONS = () => [
-    ...SHELLS.map((s) => ({ ico: KIND_ICON[s.id], cls: 'act', title: `Nova aba: ${s.label}`, run: () => newTab({ kind: s.id, ntp: false }) })),
+    ...envs.map((e) => ({ ...envSug(e), title: `Ambiente: ${e.name}` })),
+    { ico: '+', cls: 'act', title: 'Novo ambiente de trabalho', run: () => editEnv() },
+    { ico: '◆', cls: 'act', title: 'Salvar esta aba como ambiente', run: () => editEnv(null, { fromTab: active }) },
+    ...SHELLS.map((x) => ({ ico: KIND_ICON[x.kind], cls: 'act', title: `Nova aba: ${x.label}`, run: () => newTab({ kind: x.kind, distro: x.distro, ntp: false }) })),
     { ico: '✦', cls: 'ask', title: 'Nova aba do Claude Code', run: () => newTab({ kind: 'claude' }) },
     { ico: '◐', cls: 'act', title: 'Abrir/fechar a sidebar do Claude', run: () => toggleSidebar() },
     ...Object.entries(THEMES).map(([id, t]) => ({ ico: '●', cls: 'act', title: `Tema: ${t.label}`, run: () => applyTheme(id) })),
@@ -449,6 +515,12 @@
         .forEach((p) => out.push({ ico: '📁', cls: 'dir', title: baseName(p), sub: shortPath(p), run: () => openFolder(p), alt: () => newTab({ cwd: p, ntp: false }) }));
       return out;
     }
+    if (raw.startsWith('@')) {
+      const f = raw.slice(1).trim().toLowerCase();
+      const list = envs.filter((e) => e.name.toLowerCase().includes(f)).map((e) => envSug(e, f));
+      list.push({ ico: '+', cls: 'act', title: f ? `Novo ambiente "${raw.slice(1).trim()}"` : 'Novo ambiente de trabalho', run: () => editEnv(null, { name: raw.slice(1).trim(), fromTab: active }) });
+      return list;
+    }
     if (raw.startsWith('>')) {
       const f = raw.slice(1).trim().toLowerCase();
       return ACTIONS().filter((a) => a.title.toLowerCase().includes(f)).slice(0, 8).map((a) => ({ ...a, q: f }));
@@ -458,7 +530,7 @@
       return [{ ico: '✦', cls: 'ask', title: text ? `Perguntar ao Claude: ${text}` : 'Digite a pergunta para o Claude', run: () => text && askClaude(text) }];
     }
     if (looksLikePath(raw)) {
-      const r = await neo.complete(t.cwd, raw);
+      const r = await neo.complete(t.cwd, raw, t.kind === 'wsl' ? t.distro || wslDefault : undefined);
       if (r.exact) out.push({ ico: '📁', cls: 'dir', title: `Ir para ${baseName(r.exact)}`, sub: r.exact, run: () => openFolder(r.exact), alt: () => newTab({ cwd: r.exact, ntp: false }), fill: r.exact });
       r.items.filter((it) => !samePath(it.path, r.exact))
         .forEach((it) => out.push({ ico: '📁', cls: 'dir', title: it.name, sub: it.path, run: () => openFolder(it.path), alt: () => newTab({ cwd: it.path, ntp: false }), fill: it.path + sepOf(it.path) }));
@@ -467,6 +539,7 @@
     }
     out.push({ ico: '>_', cls: 'run', title: `Executar: ${raw}`, sub: t.kind === 'claude' ? 'em uma aba nova' : `em ${shortPath(t.cwd)}`, run: () => runCommand(raw), key: 'Enter' });
     const ql = raw.toLowerCase();
+    envs.filter((e) => e.name.toLowerCase().includes(ql)).slice(0, 3).forEach((e) => out.push(envSug(e, raw)));
     const dirs = [...new Set([...bookmarks, ...frecent()])].filter((p) => baseName(p).toLowerCase().includes(ql)).slice(0, 4);
     dirs.forEach((p) => out.push({ ico: isBookmarked(p) ? '★' : '📁', cls: 'dir', title: baseName(p), sub: shortPath(p), q: raw, run: () => openFolder(p), alt: () => newTab({ cwd: p, ntp: false }) }));
     out.push({ ico: '✦', cls: 'ask', title: `Perguntar ao Claude: ${raw}`, sub: 'abre a sidebar com a pergunta', run: () => askClaude(raw) });
@@ -483,6 +556,7 @@
       list.forEach((s, i) => {
         const row = h('div', 'sug' + (i === sel ? ' sel' : ''));
         const ico = h('span', 's-ico ' + (s.cls || ''), s.ico);
+        if (s.color) ico.style.color = s.color;
         const main = h('div', 's-main');
         main.appendChild(mark(s.title, s.q || ''));
         if (s.sub) main.appendChild(h('span', 's-sub', s.sub));
@@ -556,6 +630,36 @@
 
     inner.append(clock, greet, search);
 
+    // Ambientes de trabalho
+    const envSec = h('div', 'ntp-section');
+    const envHead = h('div', 'sec-head');
+    envHead.append(h('h3', null, 'Ambientes de trabalho'));
+    envSec.appendChild(envHead);
+    const envGrid = h('div', 'tiles');
+    [...envs].sort((a, b) => (b.used || 0) - (a.used || 0)).slice(0, 7).forEach((env, i) => {
+      const card = h('div', 'tile env-card');
+      card.style.animationDelay = i * 35 + 'ms';
+      card.style.setProperty('--env', env.color);
+      const sh = shellOf(env.shell);
+      card.append(folder3d(env.color, KIND_ICON[sh.kind] || ''), h('div', 't-name', env.name), h('div', 't-path', envSub(env)));
+      card.title = `${env.name}\n${env.cwd}${env.startup ? '\n\nAo abrir:\n' + env.startup : ''}`;
+      const edit = h('button', 't-x t-edit', '✎'); edit.title = 'Editar ambiente';
+      edit.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); editEnv(env); });
+      card.appendChild(edit);
+      card.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.t-x')) return;
+        e.preventDefault();
+        if (e.button === 1 || e.ctrlKey) openEnv(env, { forceNew: true });
+        else if (e.button === 0) openEnv(env, { tab });
+      });
+      envGrid.appendChild(card);
+    });
+    const add = h('div', 'tile add-card');
+    add.append(h('div', 'plus', '+'), h('div', 't-name', 'Novo ambiente'), h('div', 't-path', envs.length ? 'pasta, shell e comandos' : 'salve um projeto para abrir com um clique'));
+    add.addEventListener('mousedown', (e) => { if (e.button !== 0) return; e.preventDefault(); editEnv(null, { fromTab: tab }); });
+    envGrid.appendChild(add);
+    envSec.appendChild(envGrid); inner.appendChild(envSec);
+
     const tileSection = (title, paths) => {
       if (!paths.length) return;
       const sec = h('div', 'ntp-section');
@@ -564,9 +668,8 @@
       paths.slice(0, 8).forEach((p, i) => {
         const tile = h('div', 'tile');
         tile.style.animationDelay = i * 35 + 'ms';
-        const mono = h('div', 'mono', baseName(p).charAt(0).toUpperCase() || '/');
-        mono.style.background = monoBg(p);
-        tile.append(mono, h('div', 't-name', p === home ? 'Pasta pessoal' : baseName(p)), h('div', 't-path', shortPath(p)));
+        const glyph = samePath(p, home) ? '⌂' : isBookmarked(p) ? '★' : isWslPath(p) ? '🐧' : '';
+        tile.append(folder3d(folderColor(p), glyph), h('div', 't-name', samePath(p, home) ? 'Pasta pessoal' : baseName(p) || p), h('div', 't-path', shortPath(p)));
         tile.title = p;
         if (visits[p]) {
           const x = h('button', 't-x', '✕'); x.title = 'Remover das mais visitadas';
@@ -576,8 +679,8 @@
         tile.addEventListener('mousedown', (e) => {
           if (e.target.closest('.t-x')) return;
           e.preventDefault(); // não tira o foco do terminal
-          if (e.button === 1 || e.ctrlKey) newTab({ cwd: p, ntp: false });
-          else if (e.button === 0) hideNtp(tab, { respawnIn: p });
+          if (e.button === 1 || e.ctrlKey) newTab({ cwd: p, ntp: false, ...(isWslPath(p) ? { kind: 'wsl', distro: visits[p]?.d } : {}) });
+          else if (e.button === 0) openFolder(p, { tab });
         });
         grid.appendChild(tile);
       });
@@ -590,21 +693,25 @@
     const sec = h('div', 'ntp-section');
     sec.appendChild(h('h3', null, 'Abrir com'));
     const starts = h('div', 'starts');
-    [...SHELLS.map((s) => ({ kind: s.id, t: s.label, s: s.sub })), { kind: 'claude', t: 'Claude Code', s: 'conversa nesta pasta' }].forEach((it) => {
+    [...SHELLS.map((x) => ({ kind: x.kind, distro: x.distro, t: x.label, s: x.sub })), { kind: 'claude', t: 'Claude Code', s: 'conversa nesta pasta' }].forEach((it) => {
       const b = h('div', 'start');
       b.dataset.kind = it.kind;
       const fav = h('span', 'fav', KIND_ICON[it.kind]);
-      fav.style.background = it.kind === 'claude' ? 'linear-gradient(135deg,var(--accent),var(--accent-2))' : it.kind.startsWith('p') ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : 'linear-gradient(135deg,#3a4256,#262c3c)';
+      fav.style.background = it.kind === 'claude' ? 'linear-gradient(135deg,var(--accent),var(--accent-2))' : it.kind === 'wsl' ? 'linear-gradient(135deg,#f0743e,#c2410c)' : it.kind.startsWith('p') ? 'linear-gradient(135deg,#3b82f6,#1d4ed8)' : 'linear-gradient(135deg,#3a4256,#262c3c)';
       const txt = h('div');
       txt.append(h('div', 'st-t', it.t), h('div', 'st-s', it.s));
       b.append(fav, txt);
-      b.addEventListener('mousedown', (e) => { if (e.button !== 0) return; e.preventDefault(); hideNtp(tab, { respawnIn: tab.cwd, kind: it.kind }); });
+      b.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; e.preventDefault();
+        const cwd = it.kind === 'wsl' ? (isWslPath(tab.cwd) ? tab.cwd : '~') : isWslPath(tab.cwd) ? home : tab.cwd;
+        hideNtp(tab, { respawnIn: cwd, kind: it.kind, distro: it.distro });
+      });
       starts.appendChild(b);
     });
     sec.appendChild(starts); inner.appendChild(sec);
 
     const hint = h('div', 'ntp-hint');
-    hint.innerHTML = '<span><kbd>Esc</kbd> ir para o terminal</span><span><kbd>Ctrl+L</kbd> barra de endereço</span><span><kbd>Alt+←</kbd> voltar</span><span><kbd>Ctrl+D</kbd> favoritar</span><span><kbd>&gt;</kbd> comandos do app</span>';
+    hint.innerHTML = '<span><kbd>Esc</kbd> ir para o terminal</span><span><kbd>Ctrl+L</kbd> barra de endereço</span><span><kbd>@</kbd> ambientes</span><span><kbd>Alt+←</kbd> voltar</span><span><kbd>Ctrl+D</kbd> favoritar</span><span><kbd>&gt;</kbd> comandos do app</span>';
     inner.appendChild(hint);
     page.appendChild(inner);
     page.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('.omni-pop:not(.hidden)', page)) hideNtp(tab); });
@@ -614,7 +721,7 @@
   }
   // Sai da página de nova aba. Se escolheu outra pasta ou shell, reinicia o processo lá:
   // nada foi exibido ainda, então não aparece nenhum "cd" digitado.
-  function hideNtp(tab, { respawnIn, kind } = {}) {
+  function hideNtp(tab, { respawnIn, kind, distro } = {}) {
     const page = tab.ntp;
     if (!page) return;
     tab.ntp = null;
@@ -622,15 +729,197 @@
     page.classList.add('leaving');
     setTimeout(() => page.remove(), 180);
     const newKind = kind || tab.kind;
-    if ((respawnIn && !samePath(respawnIn, tab.cwd)) || newKind !== tab.kind) {
-      tab.kind = newKind; setKindVisual(tab);
+    const newDistro = kind ? distro : tab.distro;
+    if ((respawnIn && !samePath(respawnIn, tab.cwd)) || newKind !== tab.kind || newDistro !== tab.distro) {
+      tab.kind = newKind; tab.distro = newDistro; setKindVisual(tab);
       tab.cwd = respawnIn || tab.cwd; tab.history = [tab.cwd]; tab.hIndex = 0;
       tab.atPrompt = false; tab.visited = false; tab.promptAware = false; tab.term.reset();
-      spawnPty(tab, tab.kind, tab.cwd, tab.term);
+      spawnPty(tab, tab.kind, tab.cwd, tab.term, tab.distro);
       if (tab.kind === 'claude') recordVisit(tab.cwd);
+      // A conversa do Claude criada na página de nova aba estava na pasta antiga: recomeça na nova.
+      if (tab.claude) { disposeClaude(tab); if (!sidebar.classList.contains('hidden')) ensureClaude(tab); }
     }
     refreshTab(tab); if (tab === active) { updateToolbar(); focusActive(); }
   }
+
+  /* =================== ambientes de trabalho =================== */
+  // Marca a aba com o ambiente e enfileira os comandos de abertura (um por prompt, na ordem).
+  function applyEnv(tab, env) {
+    tab.envId = env.id;
+    setKindVisual(tab); refreshTab(tab);
+    const lines = (env.startup || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    tab.pending.push(...lines);
+    if (lines.length && tab.atPrompt) onPromptFlush(tab);
+    // Shell que não avisa o prompt: manda tudo de uma vez depois que ele abrir.
+    setTimeout(() => { if (!tab.promptAware && tab.pending.length) tab.pending.splice(0).forEach((l) => neo.write(tab.ptyId, l + '\r')); }, 3500);
+    env.used = Date.now(); saveEnvs();
+    if (env.claude) toggleSidebar(true);
+    if (tab === active) updateToolbar();
+  }
+  // Abre um ambiente: na página de nova aba atual, se houver; senão, numa aba nova.
+  async function openEnv(env, { forceNew = false, tab = active } = {}) {
+    const sh = shellOf(env.shell);
+    if (!forceNew && tab && tab.ntp) {
+      hideNtp(tab, { respawnIn: env.cwd, kind: sh.kind, distro: sh.distro });
+      applyEnv(tab, env);
+      return tab;
+    }
+    return newTab({ kind: sh.kind, distro: sh.distro, cwd: env.cwd, env, ntp: false });
+  }
+
+  // Formulário de criar/editar ambiente.
+  function editEnv(env = null, { fromTab = null, name = '' } = {}) {
+    closeEnvPop();
+    const isNew = !env;
+    const src = fromTab && !fromTab.ntp ? fromTab : null;
+    const draft = env ? { ...env } : {
+      id: 'e' + Date.now().toString(36), name: name || (src ? baseName(src.cwd) : ''),
+      color: ENV_COLORS[envs.length % ENV_COLORS.length],
+      shell: src && src.kind !== 'claude' ? shellKey(src.kind, src.distro) : defaultShell,
+      cwd: src ? src.cwd : (fromTab?.cwd || home), startup: '', claude: false,
+    };
+    const bg = h('div', 'modal-bg');
+    const m = h('div', 'modal');
+    const head = h('div', 'modal-head');
+    const preview = folder3d(draft.color, '');
+    const titles = h('div');
+    titles.append(h('div', 'm-title', isNew ? 'Novo ambiente de trabalho' : 'Editar ambiente'),
+      h('div', 'm-sub', 'Pasta, shell e comandos de um projeto, para abrir com um clique.'));
+    head.append(preview, titles);
+
+    const field = (label, control, hint) => {
+      const f = h('label', 'field');
+      f.append(h('span', 'f-label', label), control);
+      if (hint) f.appendChild(h('span', 'f-hint', hint));
+      return f;
+    };
+    const nameIn = h('input'); nameIn.value = draft.name; nameIn.placeholder = 'Ex.: Loja (Rails)'; nameIn.spellcheck = false;
+
+    const colors = h('div', 'swatches');
+    ENV_COLORS.forEach((c) => {
+      const sw = h('button', 'sw' + (c === draft.color ? ' on' : ''));
+      sw.type = 'button'; sw.style.background = c; sw.title = c;
+      sw.onclick = () => { draft.color = c; colors.querySelectorAll('.sw').forEach((x) => x.classList.toggle('on', x === sw)); preview.style.setProperty('--c', c); };
+      colors.appendChild(sw);
+    });
+
+    const shellSel = h('select');
+    const keys = SHELLS.map((x) => x.key);
+    if (!keys.includes(draft.shell)) { const o = h('option', null, draft.shell.startsWith('wsl:') ? `WSL · ${draft.shell.slice(4)}` : draft.shell); o.value = draft.shell; shellSel.appendChild(o); }
+    SHELLS.forEach((x) => { const o = h('option', null, x.label); o.value = x.key; shellSel.appendChild(o); });
+    shellSel.value = draft.shell;
+
+    const cwdRow = h('div', 'row');
+    const cwdIn = h('input'); cwdIn.value = draft.cwd; cwdIn.spellcheck = false;
+    const useCur = h('button', 'btn ghost', 'Usar a pasta atual'); useCur.type = 'button';
+    useCur.onclick = () => { const t = tabs.find((x) => x === fromTab) || active; if (t?.cwd) cwdIn.value = t.cwd; };
+    cwdRow.append(cwdIn, useCur);
+    const cwdHint = () => (shellOf(shellSel.value).kind === 'wsl' ? 'No WSL, use o caminho do Linux, por exemplo /home/voce/projetos/loja (ou ~).' : 'Por exemplo C:\\projetos\\loja.');
+    const hintEl = h('span', 'f-hint', cwdHint());
+    shellSel.onchange = () => { hintEl.textContent = cwdHint(); };
+
+    const startIn = h('textarea'); startIn.value = draft.startup || ''; startIn.rows = 4; startIn.spellcheck = false;
+    startIn.placeholder = 'Um comando por linha. Ex.:\nrbenv shell 3.3.0\nbundle install\ngit pull';
+
+    const claudeChk = h('label', 'check-row');
+    const chk = h('input'); chk.type = 'checkbox'; chk.checked = !!draft.claude;
+    claudeChk.append(chk, h('span', null, 'Abrir a sidebar do Claude junto'));
+
+    const cwdField = field('Pasta', cwdRow); cwdField.appendChild(hintEl);
+    const body = h('div', 'modal-body');
+    body.append(field('Nome', nameIn), field('Cor', colors), field('Shell', shellSel), cwdField,
+      field('Comandos ao abrir', startIn, 'Rodam em ordem, um depois do outro, quando o terminal fica pronto.'), claudeChk);
+
+    const foot = h('div', 'modal-foot');
+    const del = h('button', 'btn danger', 'Excluir'); del.type = 'button';
+    const cancel = h('button', 'btn ghost', 'Cancelar'); cancel.type = 'button';
+    const save = h('button', 'btn', 'Salvar'); save.type = 'button';
+    const saveOpen = h('button', 'btn primary', 'Salvar e abrir'); saveOpen.type = 'button';
+    if (!isNew) foot.appendChild(del);
+    foot.append(h('span', 'grow'), cancel, save, saveOpen);
+    m.append(head, body, foot);
+    bg.appendChild(m);
+    document.body.appendChild(bg);
+    setTimeout(() => (isNew && !draft.name ? nameIn : nameIn).focus(), 30);
+
+    const close = () => { bg.classList.add('leaving'); setTimeout(() => bg.remove(), 150); focusActive(); };
+    const commit = (andOpen) => {
+      const nm = nameIn.value.trim(), cwd = cwdIn.value.trim();
+      if (!nm) { nameIn.classList.add('bad'); nameIn.focus(); return; }
+      if (!cwd) { cwdIn.classList.add('bad'); cwdIn.focus(); return; }
+      Object.assign(draft, { name: nm, cwd, shell: shellSel.value, startup: startIn.value.replace(/\s+$/, ''), claude: chk.checked });
+      const i = envs.findIndex((e) => e.id === draft.id);
+      if (i >= 0) envs[i] = draft; else envs.push(draft);
+      saveEnvs();
+      tabs.forEach((t) => { if (t.envId === draft.id) { setKindVisual(t); refreshTab(t); } });
+      close();
+      toast(isNew ? `Ambiente "${nm}" criado` : `Ambiente "${nm}" salvo`);
+      // Abre antes de atualizar as páginas de nova aba, para usar a página atual em vez de abrir outra aba.
+      if (andOpen) openEnv(draft, { tab: tabs.find((x) => x === fromTab) || active });
+      refreshNtps();
+    };
+    save.onclick = () => commit(false);
+    saveOpen.onclick = () => commit(true);
+    cancel.onclick = close;
+    del.onclick = () => {
+      if (del.dataset.confirm !== '1') { del.dataset.confirm = '1'; del.textContent = 'Confirmar exclusão'; return; }
+      envs = envs.filter((e) => e.id !== draft.id); saveEnvs();
+      tabs.forEach((t) => { if (t.envId === draft.id) { t.envId = null; setKindVisual(t); refreshTab(t); } });
+      refreshNtps(); close(); toast(`Ambiente "${draft.name}" excluído`);
+    };
+    bg.addEventListener('mousedown', (e) => { if (e.target === bg) close(); });
+    m.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+      else if (e.key === 'Enter' && (e.ctrlKey || e.target.tagName === 'INPUT')) { e.preventDefault(); commit(e.ctrlKey || e.shiftKey); }
+    });
+  }
+  // Recria as páginas de nova aba abertas (para mostrar ambientes novos ou editados).
+  function refreshNtps() {
+    tabs.forEach((t) => {
+      if (!t.ntp || $('input', t.ntp)?.value) return; // não apaga o que a pessoa está digitando
+      const old = t.ntp; clearInterval(old._clock); t.ntp = null; old.remove(); showNtp(t);
+    });
+  }
+
+  // Botão de ambientes na barra de ferramentas.
+  const envPop = $('#env-pop');
+  function renderEnvButton() {
+    const b = $('#env-btn');
+    const env = envById(active?.envId);
+    b.classList.toggle('has-env', !!env);
+    b.style.setProperty('--env', env ? env.color : 'var(--muted)');
+    $('#env-btn-label').textContent = env ? env.name : 'Ambientes';
+  }
+  const closeEnvPop = () => envPop.classList.add('hidden');
+  function openEnvPop() {
+    envPop.innerHTML = '';
+    envPop.appendChild(h('div', 'hd', 'Ambientes de trabalho'));
+    if (!envs.length) envPop.appendChild(h('div', 'empty', 'Nenhum ambiente ainda. Crie um para abrir pasta, shell e comandos de um projeto com um clique.'));
+    [...envs].sort((a, b) => (b.used || 0) - (a.used || 0)).forEach((env) => {
+      const row = h('div', 'env-row' + (active?.envId === env.id ? ' current' : ''));
+      const dot = h('span', 'env-dot'); dot.style.background = env.color;
+      const txt = h('div', 'env-txt');
+      txt.append(h('div', 'env-name', env.name), h('div', 'env-sub', envSub(env)));
+      const edit = h('button', 'env-edit', '✎'); edit.title = 'Editar';
+      edit.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); editEnv(env); });
+      row.append(dot, txt, edit);
+      row.title = 'Clique: abrir · Ctrl+clique: abrir em nova aba';
+      row.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.env-edit')) return;
+        e.preventDefault(); closeEnvPop();
+        openEnv(env, { forceNew: e.button === 1 || e.ctrlKey });
+      });
+      envPop.appendChild(row);
+    });
+    envPop.appendChild(h('div', 'sep'));
+    const act = (label, fn) => { const b = h('button', null, label); b.onclick = () => { closeEnvPop(); fn(); }; envPop.appendChild(b); };
+    act('+  Novo ambiente', () => editEnv(null, { fromTab: active }));
+    if (active && !active.ntp && active.kind !== 'claude') act('◆  Salvar esta aba como ambiente', () => editEnv(null, { fromTab: active }));
+    envPop.classList.toggle('hidden');
+  }
+  $('#env-btn').onclick = (e) => { e.stopPropagation(); if (envPop.classList.contains('hidden')) openEnvPop(); else closeEnvPop(); };
+  document.addEventListener('mousedown', (e) => { if (!e.target.closest('#env-pop') && !e.target.closest('#env-btn')) closeEnvPop(); });
 
   /* =================== Claude =================== */
   function ensureClaude(tab, focus = false) {
@@ -725,11 +1014,17 @@
     };
     const hd = (t) => menu.appendChild(h('div', 'hd', t));
     const sep = () => menu.appendChild(h('div', 'sep'));
+    if (envs.length) {
+      hd('Ambientes');
+      [...envs].sort((a, b) => (b.used || 0) - (a.used || 0)).slice(0, 6).forEach((env) => add(env.name, () => openEnv(env, { forceNew: true }), { swatch: env.color }));
+      add('Novo ambiente…', () => editEnv(null, { fromTab: active }), { kbd: 'Ctrl+Shift+E' });
+      sep();
+    }
     hd('Nova aba');
-    SHELLS.forEach((s) => add(s.label, () => newTab({ kind: s.id }), { kbd: s.id === defaultShell ? 'padrão' : '' }));
+    SHELLS.forEach((x) => add(x.label, () => newTab({ kind: x.kind, distro: x.distro }), { kbd: x.key === defaultShell ? 'padrão' : '' }));
     add('✦  Claude Code', () => newTab({ kind: 'claude' }));
     add('Reabrir aba fechada', reopenClosed, { kbd: 'Ctrl+Shift+T' });
-    if (SHELLS.length > 1) { sep(); hd('Shell padrão'); SHELLS.forEach((s) => add(s.label, () => { defaultShell = s.id; store.set('neo.shell', s.id); }, { check: s.id === defaultShell })); }
+    if (SHELLS.length > 1) { sep(); hd('Shell padrão'); SHELLS.forEach((x) => add(x.label, () => { defaultShell = x.key; store.set('neo.shell', x.key); }, { check: x.key === defaultShell })); }
     sep(); hd('Tema');
     Object.entries(THEMES).forEach(([id, t]) => add(t.label, () => applyTheme(id), { check: id === themeId, swatch: `linear-gradient(135deg,${t.bar} 50%,${t.accent} 50%)` }));
     sep(); hd('Exibição');
@@ -748,12 +1043,13 @@
     const k = e.key.toLowerCase();
     if (e.altKey && !e.ctrlKey && ['arrowleft', 'arrowright', 'arrowup', 'd'].includes(k)) return true;
     if (!e.ctrlKey) return k === 'f6';
-    return ['t', 'w', 'tab', 'l', 'd', '=', '+', '-', '_', '0'].includes(k) || /^[1-9]$/.test(k) || (e.shiftKey && k === 'b');
+    return ['t', 'w', 'tab', 'l', 'd', '=', '+', '-', '_', '0'].includes(k) || /^[1-9]$/.test(k) || (e.shiftKey && (k === 'b' || k === 'e'));
   }
   window.addEventListener('keydown', (e) => {
     if (!isAppShortcut(e) || e.target.isContentEditable) return;
     const k = e.key.toLowerCase();
-    const inField = e.target.tagName === 'INPUT';
+    if (e.target.closest && e.target.closest('.modal')) return;
+    const inField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
     if (inField && !e.ctrlKey && !e.altKey) return;
     e.preventDefault();
     if (e.altKey) { if (k === 'arrowleft') goBack(); else if (k === 'arrowright') goForward(); else if (k === 'arrowup') goUp(); else startEditing(); return; }
@@ -763,6 +1059,7 @@
     else if (k === 'tab') cycle(e.shiftKey ? -1 : 1);
     else if (k === 'd') toggleBookmark();
     else if (k === 'b') toggleSidebar();
+    else if (k === 'e') { if (envPop.classList.contains('hidden')) openEnvPop(); else closeEnvPop(); }
     else if (k === '=' || k === '+') setZoom(fontSize + 1);
     else if (k === '-' || k === '_') setZoom(fontSize - 1);
     else if (k === '0') setZoom(14);
@@ -790,5 +1087,11 @@
   document.documentElement.dataset.theme = themeId;
   neo.setTitlebar(THEMES[themeId].bar, THEMES[themeId].sym);
   renderBookmarks();
+  renderEnvButton();
+  neo.wslList().then(({ distros, def }) => {
+    wslDefault = def;
+    distros.forEach((d) => SHELLS.push({ key: `wsl:${d}`, kind: 'wsl', distro: d, label: `WSL · ${d}`, sub: `wsl.exe -d ${d}` }));
+    if (distros.length) refreshNtps();
+  }).catch(() => {});
   neo.home().then((hm) => { home = hm; return newTab(); }).then(() => { if (store.get('neo.sidebar', false)) toggleSidebar(true); });
 })();

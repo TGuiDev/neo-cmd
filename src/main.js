@@ -39,9 +39,40 @@ const PS_PROMPT =
   "function prompt { $p = $executionContext.SessionState.Path.CurrentLocation.Path; " +
   "\"$([char]27)]9;9;$p$([char]27)\\PS $p> \" }";
 
-function shellFor(kind) {
+/* ---------- WSL ---------- */
+let wslInfo = null;
+// Lista as distros do WSL (a saída do wsl.exe vem em UTF-16).
+function listWsl() {
+  if (!isWin) return Promise.resolve({ distros: [], def: null });
+  if (wslInfo) return Promise.resolve(wslInfo);
+  return new Promise((resolve) => {
+    execFile('wsl.exe', ['-l', '-v'], { timeout: 5000, windowsHide: true, encoding: 'buffer' }, (err, out) => {
+      const info = { distros: [], def: null };
+      if (!err && out && out.length) {
+        const text = (out.includes(0) ? out.toString('utf16le') : out.toString('utf8')).replace(/\0/g, '');
+        text.split(/\r?\n/).slice(1).map((l) => l.trim()).filter(Boolean).forEach((l) => {
+          const isDef = l.startsWith('*');
+          const name = l.replace(/^\*/, '').trim().split(/\s+/)[0];
+          if (!name || /^docker-desktop/i.test(name)) return;
+          info.distros.push(name);
+          if (isDef) info.def = name;
+        });
+        if (!info.def) info.def = info.distros[0] || null;
+      }
+      wslInfo = info;
+      resolve(info);
+    });
+  });
+}
+const isPosix = (p) => typeof p === 'string' && p.startsWith('/');
+// Caminho Linux do WSL visto pelo Windows: \\wsl.localhost\<distro>\home\...
+const wslUnc = (distro, p) => `\\\\wsl.localhost\\${distro}${p.replace(/\//g, '\\')}`;
+
+function shellFor(kind, { distro, cwd } = {}) {
   if (!isWin) return { file: process.env.SHELL || '/bin/bash', args: [] };
   switch (kind) {
+    case 'wsl':
+      return { file: 'wsl.exe', args: [...(distro ? ['-d', distro] : []), '--cd', cwd || '~'] };
     case 'powershell':
       return { file: 'powershell.exe', args: ['-NoLogo', '-NoExit', '-Command', PS_PROMPT] };
     case 'pwsh':
@@ -58,6 +89,9 @@ function buildEnv() {
   // Informa o diretório atual ao terminal (OSC 9;9) a cada prompt.
   if (isWin) {
     env.PROMPT = '$E]9;9;$P$E\\$P$G';
+    // WSL: o bash do Linux recebe o PROMPT_COMMAND pelo WSLENV e também avisa a pasta atual.
+    env.PROMPT_COMMAND = 'printf "\\033]9;9;%s\\033\\\\" "$PWD"';
+    env.WSLENV = [env.WSLENV, 'PROMPT_COMMAND/u'].filter(Boolean).join(':');
     // Clink com prompt personalizado ignora o PROMPT acima: o script neo-cmd.lua faz o mesmo aviso.
     env.NEO_CMD = '1';
     const clinkDir = [path.join(process.resourcesPath || '', 'clink'), path.join(__dirname, 'clink')].find((d) => fs.existsSync(d));
@@ -67,8 +101,8 @@ function buildEnv() {
   return env;
 }
 
-function spawnTerminal({ id, kind, cwd, cols, rows }) {
-  const startDir = cwd && fs.existsSync(cwd) ? cwd : os.homedir();
+function spawnTerminal({ id, kind, cwd, distro, cols, rows }) {
+  const startDir = kind !== 'wsl' && cwd && fs.existsSync(cwd) ? cwd : os.homedir();
   let file, args = [], typed = null;
 
   if (kind === 'claude') {
@@ -77,7 +111,7 @@ function spawnTerminal({ id, kind, cwd, cols, rows }) {
     if (bin) file = bin;
     else ({ file, args } = shellFor('default')), (typed = 'claude');
   } else {
-    ({ file, args } = shellFor(kind));
+    ({ file, args } = shellFor(kind, { distro, cwd }));
   }
 
   const proc = pty.spawn(file, args, {
@@ -106,17 +140,40 @@ ipcMain.on('pty:kill', (_e, id) => {
   terminals.delete(id);
 });
 ipcMain.handle('app:home', () => os.homedir());
-ipcMain.handle('app:git-branch', (_e, cwd) => new Promise((resolve) => {
+ipcMain.handle('wsl:list', () => listWsl());
+ipcMain.handle('app:git-branch', async (_e, cwd, distro) => {
+  if (isWin && isPosix(cwd)) { const d = distro || (await listWsl()).def; if (!d) return ''; cwd = wslUnc(d, cwd); }
+  return gitBranch(cwd);
+});
+const gitBranch = (cwd) => new Promise((resolve) => {
   if (!cwd || !fs.existsSync(cwd)) return resolve('');
   execFile('git', ['-C', cwd, 'rev-parse', '--abbrev-ref', 'HEAD'],
     { timeout: 1500, windowsHide: true }, (err, out) => resolve(err ? '' : String(out).trim()));
-}));
+});
 /* ---------- pastas (barra de endereço e página de nova aba) ---------- */
 const expand = (p) => (p === '~' || p.startsWith('~/') || p.startsWith('~\\') ? path.join(os.homedir(), p.slice(1)) : p);
 const isDir = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
 
 // Completa um caminho digitado: devolve a pasta exata (se existir) e subpastas que combinam.
-ipcMain.handle('fs:complete', (_e, cwd, input) => {
+ipcMain.handle('fs:complete', async (_e, cwd, input, distro) => {
+  // Abas do WSL (ou caminhos Linux no Windows): completa dentro da distro via \\wsl.localhost.
+  if (isWin && (distro || isPosix(input) || isPosix(cwd))) {
+    const d = distro || (await listWsl()).def;
+    if (!d) return { exact: null, items: [] };
+    const raw = String(input || '').trim();
+    const full = path.posix.resolve(isPosix(cwd) ? cwd : '/', raw || '.');
+    const endsWithSep = raw.endsWith('/');
+    const base = endsWithSep ? full : path.posix.dirname(full);
+    const prefix = endsWithSep ? '' : path.posix.basename(full).toLowerCase();
+    let items = [];
+    try {
+      items = fs.readdirSync(wslUnc(d, base), { withFileTypes: true })
+        .filter((e) => e.isDirectory() && e.name.toLowerCase().startsWith(prefix) && (prefix.startsWith('.') || !e.name.startsWith('.')))
+        .map((e) => e.name).sort((a, b) => a.localeCompare(b)).slice(0, 8)
+        .map((name) => ({ name, path: path.posix.join(base, name) }));
+    } catch {}
+    return { exact: isDir(wslUnc(d, full)) ? full : null, items };
+  }
   const raw = expand(String(input || '').trim());
   const full = path.resolve(cwd && isDir(cwd) ? cwd : os.homedir(), raw || '.');
   const endsWithSep = /[\\/]$/.test(raw);
