@@ -321,6 +321,7 @@
         tab.history = tab.history.slice(0, tab.hIndex + 1); tab.history.push(p); tab.hIndex = tab.history.length - 1;
       }
       recordVisit(p, tab.distro);
+      if (tab.claude) syncClaude(tab);
     } else if (p && !tab.visited) { tab.cwd = p; recordVisit(p, tab.distro); }
     tab.visited = true;
     tab.el.classList.remove('busy');
@@ -383,7 +384,7 @@
     });
     refreshTab(tab); updateToolbar();
     requestAnimationFrame(() => { try { tab.fit.fit(); } catch {} focusActive(); });
-    if (!sidebar.classList.contains('hidden')) ensureClaude(tab);
+    if (!sidebar.classList.contains('hidden')) { ensureClaude(tab); syncClaude(tab); }
   }
   const focusActive = () => { if (homeVisible) { $('input', homeEl || document.createElement('div'))?.focus(); return; } if (!active) return; if (active.ntp) $('input', active.ntp)?.focus(); else active.term.focus(); };
 
@@ -575,8 +576,8 @@
     $('#omni-star').classList.toggle('on', isBookmarked(t.cwd));
     renderCrumbs(t.cwd);
     renderEnvButton();
-    // Na pasta pessoal, o Claude abre numa pasta própria de conversas gerais (ele nunca grava a confiança na pasta pessoal).
-    $('#sidebar-cwd').textContent = samePath(t.cwd, home) ? 'conversa geral' : shortPath(t.cwd);
+    // Pasta da conversa do Claude (na pasta pessoal, a pasta própria de conversas gerais).
+    renderClaudeNotice();
     const my = ++gitSeq, git = $('#omni-git');
     neo.gitBranch(t.cwd, t.distro).then((b) => { if (my !== gitSeq) return; git.classList.toggle('hidden', !b); git.textContent = b ? '⎇ ' + b : ''; });
   }
@@ -1088,20 +1089,57 @@
   document.addEventListener('mousedown', (e) => { if (!e.target.closest('#env-pop') && !e.target.closest('#env-btn')) closeEnvPop(); });
 
   /* =================== Claude =================== */
+  // Pasta do projeto da aba: a raiz do repositório Git (o Claude entende o projeto inteiro), ou a pasta atual.
+  async function claudeTarget(tab) {
+    if (!tab.cwd || tab.kind === 'wsl' || isWslPath(tab.cwd)) return tab.cwd || home;
+    return (await neo.gitRoot(tab.cwd).catch(() => '')) || tab.cwd;
+  }
   function ensureClaude(tab, focus = false) {
     if (tab.claude) { tab.claude.el.classList.add('active'); fitClaude(tab, focus); return tab.claude; }
     const el = h('div', 'term-pane active');
     claudeStack.appendChild(el);
-    const c = { id: tab.id + 'c', el, ready: false, queue: [] };
-    Object.assign(c, makeTerm(el, () => c.ptyId, {}));
+    const c = { id: tab.id + 'c', el, ready: false, queue: [], used: false };
+    // A conversa conta como usada quando a pessoa envia algo; até lá, ela acompanha o projeto do terminal.
+    Object.assign(c, makeTerm(el, () => c.ptyId, { onInput: (d) => { if (d.includes('\r') && c.ready) c.used = true; } }));
     c.onFirstData = () => {
       if (c.ready || c.readyTimer) return;
       c.readyTimer = setTimeout(() => { c.ready = true; c.queue.splice(0).forEach((q) => sendToClaude(c, q)); }, 1500);
     };
     tab.claude = c;
-    spawnPty(c, 'claude', tab.cwd, c.term);
-    fitClaude(tab, focus);
+    claudeTarget(tab).then((target) => {
+      if (tab.claude !== c) return;
+      c.cwd = target;
+      spawnPty(c, 'claude', target, c.term);
+      fitClaude(tab, focus);
+      if (tab === active) renderClaudeNotice();
+    });
     return c;
+  }
+  // Mantém a conversa no projeto do terminal: reabre uma conversa ainda não usada; com conversa em
+  // andamento, só avisa e oferece abrir uma nova no projeto atual.
+  async function syncClaude(tab) {
+    if (!tab || !tab.claude || sidebar.classList.contains('hidden')) return;
+    const c = tab.claude;
+    const target = await claudeTarget(tab);
+    if (tab.claude !== c || c.cwd === undefined) return;
+    if (samePath(target, c.cwd)) c.suggest = null;
+    else if (!c.used) { disposeClaude(tab); ensureClaude(tab); return; }
+    else c.suggest = target;
+    if (tab === active) renderClaudeNotice();
+  }
+  const claudePlace = (p) => (samePath(p, home) ? 'conversa geral' : shortPath(p));
+  function renderClaudeNotice() {
+    const c = active && !homeVisible ? active.claude : null;
+    $('#sidebar-cwd').textContent = c && c.cwd ? claudePlace(c.cwd) : '';
+    const box = $('#claude-move');
+    box.innerHTML = '';
+    box.classList.toggle('hidden', !(c && c.suggest));
+    if (!c || !c.suggest) return;
+    const msg = h('div', 'cm-msg');
+    msg.append('O terminal está em ', h('b', null, claudePlace(c.suggest)), '. Esta conversa continua em ', h('b', null, claudePlace(c.cwd)), '.');
+    const btn = h('button', 'btn primary', 'Nova conversa aqui'); btn.type = 'button';
+    btn.onclick = () => { const t = active; disposeClaude(t); ensureClaude(t, true); renderClaudeNotice(); };
+    box.append(msg, btn);
   }
   // Só leva o foco para o Claude quando pedido (abrir a sidebar, perguntar); trocar de aba mantém o foco no terminal.
   function fitClaude(tab, focus) {
@@ -1117,6 +1155,7 @@
     c.ro.disconnect(); c.term.dispose(); c.el.remove(); tab.claude = null;
   }
   function sendToClaude(c, text) {
+    c.used = true;
     if (!c.ready) { c.queue.push(text); return; }
     neo.write(c.ptyId, text);
     setTimeout(() => neo.write(c.ptyId, '\r'), 120);
@@ -1136,7 +1175,7 @@
     if (show && active) ensureClaude(active, force === undefined); else focusActive();
     requestAnimationFrame(() => { try { active.fit.fit(); } catch {} });
   }
-  $('#claude-restart').onclick = () => { if (active) { if (active.claude) disposeClaude(active); ensureClaude(active, true); } };
+  $('#claude-restart').onclick = () => { if (active) { if (active.claude) disposeClaude(active); ensureClaude(active, true); renderClaudeNotice(); } };
   $('#claude-close').onclick = () => toggleSidebar(false);
   claudeBtn.onclick = () => toggleSidebar();
   splitter.addEventListener('mousedown', (e) => {

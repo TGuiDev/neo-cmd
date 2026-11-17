@@ -101,7 +101,10 @@ O comando `claude` funciona em qualquer aba, porque o app já o inclui.
 ### Sidebar
 
 - `Ctrl+Shift+B` ou o botão **✦ Claude**.
-- Cada aba tem a sua conversa, que não se perde ao trocar de aba. Ela começa na pasta em que a aba estava ao abrir a sidebar pela primeira vez.
+- Cada aba tem a sua conversa, que não se perde ao trocar de aba.
+- **A conversa abre no projeto do terminal:** na raiz do repositório Git da pasta atual (se o terminal está em `loja\app\models`, o Claude abre em `loja`), ou na própria pasta, fora de um repositório. O topo da sidebar mostra onde a conversa está.
+- **Acompanha o terminal:** ao mudar de projeto (`cd`, voltar, um favorito), uma conversa ainda não usada é reaberta no projeto novo. Se você já conversou, a conversa fica onde está e aparece o aviso *O terminal está em…*, com o botão **Nova conversa aqui**.
+- Nas abas do WSL, o Claude (versão Windows) ainda não abre dentro da pasta do Linux: ele usa a pasta de conversas gerais.
 - O botão ↻ da sidebar começa uma conversa nova na aba ativa.
 - `?pergunta` na barra de endereço envia a pergunta direto para a sidebar.
 - O Claude é aberto direto, sem shell no meio. Trocar de aba não move o foco para ele.

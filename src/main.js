@@ -194,6 +194,12 @@ ipcMain.handle('win:init', (e) => {
 });
 ipcMain.handle('app:home', () => os.homedir());
 ipcMain.handle('wsl:list', () => listWsl());
+// Raiz do repositório Git da pasta (para o Claude abrir no projeto, não numa subpasta).
+ipcMain.handle('app:git-root', (_e, cwd) => new Promise((resolve) => {
+  if (!cwd || (isWin && isPosix(cwd)) || !fs.existsSync(cwd)) return resolve('');
+  execFile('git', ['-C', cwd, 'rev-parse', '--show-toplevel'], { timeout: 1500, windowsHide: true },
+    (err, out) => resolve(err ? '' : path.resolve(String(out).trim())));
+}));
 ipcMain.handle('app:git-branch', async (_e, cwd, distro) => {
   if (isWin && isPosix(cwd)) { const d = distro || (await listWsl()).def; if (!d) return ''; cwd = wslUnc(d, cwd); }
   return gitBranch(cwd);

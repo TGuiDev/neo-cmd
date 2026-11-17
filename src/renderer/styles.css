@@ -345,3 +345,10 @@ body.at-home .tab.active { background:transparent; box-shadow:none; color:var(--
 .font-row .fr-sample { flex:1; min-width:0; font-size:14px; overflow:hidden; white-space:nowrap; color:var(--text); }
 .font-row .fr-tag { flex:none; font:500 10.5px var(--mono); color:var(--accent); }
 .font-empty { padding:14px 12px; color:var(--muted); font-size:12.5px; }
+
+/* aviso: o terminal mudou de projeto e a conversa do Claude ficou no anterior */
+#claude-move { display:flex; align-items:center; gap:12px; padding:10px 12px 10px 14px; border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--accent) 9%,transparent); flex:none; }
+#claude-move .cm-msg { flex:1; min-width:0; font-size:12px; color:var(--muted); line-height:1.45; }
+#claude-move .cm-msg b { font:500 11.5px var(--mono); color:var(--text); }
+#claude-move .btn { height:28px; flex:none; font-size:12px; }
