@@ -1,8 +1,12 @@
 # Guia de uso
 
-## Página de nova aba
+## Página inicial
 
-Toda aba nova abre numa página como a do navegador:
+O logo **neo** no canto superior esquerdo (ou `Alt+Home`) mostra a página inicial, e o app abre nela. Ela não é uma aba: nada roda até você escolher. Abrir uma pasta, um ambiente ou digitar um comando cria uma aba nova já no lugar certo. `Esc` volta para a aba em que você estava, e fechar a última aba volta para a página inicial.
+
+## Página de nova aba (opcional)
+
+Por padrão, `Ctrl+T` abre direto um terminal. Se preferir que toda aba nova comece na mesma página da página inicial, ligue menu **⋮** → *Página de nova aba*. Ela tem:
 
 - **Prompt:** a linha `❯` funciona como a barra de endereço (veja abaixo). Comece a digitar e as sugestões aparecem.
 - **Ambientes:** a lista dos seus ambientes de trabalho, do mais usado para o menos usado.
@@ -105,7 +109,9 @@ O comando `claude` funciona em qualquer aba, porque o app já o inclui.
 
 ### Primeira execução
 
-O Claude Code pede para confirmar se você confia na pasta, escolher um tema e fazer login.
+O Claude Code pede para confirmar se você confia na pasta, escolher um tema e fazer login. Ele lembra a confiança de cada pasta de projeto, então pergunta uma vez só por pasta.
+
+**Pasta pessoal:** o Claude Code nunca grava a confiança na pasta pessoal (`C:\Users\voce`) e perguntaria toda vez. Por isso, quando a aba está na pasta pessoal, a sidebar abre o Claude numa pasta própria de conversas gerais (`~\.neo-cmd\claude`, mostrada como *conversa geral*), onde a confiança fica gravada. Para o Claude trabalhar num projeto, abra a pasta do projeto antes.
 
 ## Temas e fonte
 

@@ -57,7 +57,11 @@ kbd { font:500 11px var(--mono); color:var(--muted); }
 /* ---------- barra de abas ---------- */
 #titlebar { display:flex; align-items:flex-end; height:40px; padding-left:10px; flex:none; user-select:none; -webkit-app-region:drag; }
 #titlebar button, .tab, #brand { -webkit-app-region:no-drag; }
-#brand { align-self:center; margin-right:10px; flex:none; display:grid; place-items:center; }
+#brand { align-self:center; margin-right:10px; flex:none; display:grid; place-items:center; padding:3px; border-radius:7px; cursor:pointer; }
+#brand:hover { background:var(--chrome); }
+#brand.on { box-shadow:0 0 0 1.5px var(--accent); }
+body.at-home .tab.active { background:transparent; box-shadow:none; color:var(--muted); }
+.ntp.home { z-index:6; }
 #brand img { display:block; }
 #tabs { display:flex; align-items:flex-end; height:100%; min-width:0; overflow:hidden; gap:1px; }
 #drag-fill { flex:1; min-width:40px; height:100%; }

@@ -1,6 +1,6 @@
 {
   "name": "neo-cmd",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Neo CMD - terminal para Windows que navega como o navegador, com Claude Code embutido",
   "main": "src/main.js",
   "scripts": {

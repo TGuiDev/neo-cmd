@@ -56,7 +56,9 @@
   const WIN_TAG = Math.random().toString(36).slice(2, 7);
   let fontSize = Number(store.get('neo.fontSize', 14)) || 14;
   let defaultShell = store.get('neo.shell', SHELLS[0].key);
-  let ntpEnabled = store.get('neo.ntp', true);
+  // Com a página inicial (logo), abas novas abrem direto no terminal; a página de nova aba fica opcional.
+  let ntpEnabled = store.get('neo.ntp', false);
+  let homeVisible = false, homeEl = null;
   const tabs = [];
   const byPty = new Map();   // ptyId -> { term, hold, owner }
   const closed = [];
@@ -350,6 +352,7 @@
   }
   function activate(tab) {
     if (!tab) return;
+    hideHome();
     active = tab;
     tab.el.classList.remove('done');
     tabs.forEach((t) => {
@@ -361,7 +364,7 @@
     requestAnimationFrame(() => { try { tab.fit.fit(); } catch {} focusActive(); });
     if (!sidebar.classList.contains('hidden')) ensureClaude(tab);
   }
-  const focusActive = () => { if (!active) return; if (active.ntp) $('input', active.ntp)?.focus(); else active.term.focus(); };
+  const focusActive = () => { if (homeVisible) { $('input', homeEl || document.createElement('div'))?.focus(); return; } if (!active) return; if (active.ntp) $('input', active.ntp)?.focus(); else active.term.focus(); };
 
   function closeTab(tab, { keepPty = false } = {}) {
     const i = tabs.indexOf(tab);
@@ -374,7 +377,7 @@
     byPty.delete(tab.ptyId); tab.ro.disconnect(); tab.term.dispose(); tab.pane.remove();
     if (tab.claude) disposeClaude(tab);
     tab.el.remove(); tabs.splice(i, 1);
-    if (!tabs.length) { if (keepPty) window.close(); else newTab(); return; }
+    if (!tabs.length) { if (keepPty) window.close(); else { active = null; showHome(); } return; }
     if (active === tab) activate(tabs[Math.min(i, tabs.length - 1)]);
   }
   const cycle = (dir) => tabs.length > 1 && activate(tabs[(tabs.indexOf(active) + dir + tabs.length) % tabs.length]);
@@ -521,16 +524,25 @@
     runIn(tab, cmd); focusActive();
   }
   const onPromptFlush = (tab) => { const next = tab.pending.shift(); if (next) runIn(tab, next); };
-  function goBack() { const t = active; if (t.hIndex > 0 && isFree(t)) { t.hIndex--; openFolder(t.history[t.hIndex], { fromHistory: true }); updateToolbar(); } }
-  function goForward() { const t = active; if (t.hIndex < t.history.length - 1 && isFree(t)) { t.hIndex++; openFolder(t.history[t.hIndex], { fromHistory: true }); updateToolbar(); } }
-  async function goUp() { const p = await neo.parent(active.cwd); if (p) openFolder(p); }
+  function goBack() { const t = active; if (!t || homeVisible) return; if (t.hIndex > 0 && isFree(t)) { t.hIndex--; openFolder(t.history[t.hIndex], { fromHistory: true }); updateToolbar(); } }
+  function goForward() { const t = active; if (!t || homeVisible) return; if (t.hIndex < t.history.length - 1 && isFree(t)) { t.hIndex++; openFolder(t.history[t.hIndex], { fromHistory: true }); updateToolbar(); } }
+  async function goUp() { if (!active || homeVisible) return; const p = await neo.parent(active.cwd); if (p) openFolder(p); }
 
   /* =================== barra de ferramentas =================== */
   const omni = $('#omni'), omniInput = $('#omni-input'), crumbs = $('#omni-crumbs');
   let gitSeq = 0;
   function updateToolbar() {
     const t = active;
-    if (!t) return;
+    $('#brand').classList.toggle('on', homeVisible);
+    if (homeVisible || !t) {
+      ['#nav-back', '#nav-fwd', '#nav-up', '#nav-clear'].forEach((sel) => { $(sel).disabled = true; });
+      const chip = $('#omni-chip'); chip.textContent = 'Início'; chip.classList.remove('busy');
+      $('#omni-star').classList.toggle('on', isBookmarked(home));
+      renderCrumbs(home); renderEnvButton();
+      $('#omni-git').classList.add('hidden');
+      document.title = 'Neo CMD';
+      return;
+    }
     const shellTab = t.kind !== 'claude' && !t.ntp;
     $('#nav-back').disabled = !(shellTab && isFree(t) && t.hIndex > 0);
     $('#nav-fwd').disabled = !(shellTab && isFree(t) && t.hIndex < t.history.length - 1);
@@ -542,7 +554,8 @@
     $('#omni-star').classList.toggle('on', isBookmarked(t.cwd));
     renderCrumbs(t.cwd);
     renderEnvButton();
-    $('#sidebar-cwd').textContent = shortPath(t.cwd);
+    // Na pasta pessoal, o Claude abre numa pasta própria de conversas gerais (ele nunca grava a confiança na pasta pessoal).
+    $('#sidebar-cwd').textContent = samePath(t.cwd, home) ? 'conversa geral' : shortPath(t.cwd);
     const my = ++gitSeq, git = $('#omni-git');
     neo.gitBranch(t.cwd, t.distro).then((b) => { if (my !== gitSeq) return; git.classList.toggle('hidden', !b); git.textContent = b ? '⎇ ' + b : ''; });
   }
@@ -581,8 +594,15 @@
   }
 
   /* ---------- sugestões (barra de endereço e página de nova aba) ---------- */
+  // Na página inicial (ou sem abas), abrir algo cria uma aba nova; numa aba, a ação acontece nela.
+  const atHome = () => homeVisible || !active;
+  const homeCtx = () => { const sh = shellOf(defaultShell); return { cwd: home, kind: sh.kind, distro: sh.distro }; };
+  const homeOpen = (p) => newTab({ cwd: p, ntp: false, ...(isWslPath(p) ? { kind: 'wsl', distro: visits[p]?.d } : {}) });
+  const OPS = () => (atHome()
+    ? { open: homeOpen, run: (cmd) => newTab({ cwd: home, run: cmd, ntp: false }), ask: (q) => newTab({ ntp: false }).then(() => askClaude(q)), env: (e) => openEnv(e, { forceNew: true }) }
+    : { open: (p) => openFolder(p), run: runCommand, ask: askClaude, env: (e) => openEnv(e) });
   const envSug = (env, q) => ({ ico: '◆', cls: 'env', color: env.color, title: env.name, sub: `Ambiente · ${envSub(env)}`, q,
-    run: () => openEnv(env), alt: () => openEnv(env, { forceNew: true }) });
+    run: () => OPS().env(env), alt: () => openEnv(env, { forceNew: true }) });
   const ACTIONS = () => [
     ...envs.map((e) => ({ ...envSug(e), title: `Ambiente: ${e.name}` })),
     { ico: '+', cls: 'act', title: 'Novo ambiente de trabalho', run: () => editEnv() },
@@ -604,11 +624,11 @@
     return span;
   };
   async function suggest(q) {
-    const t = active, out = [];
+    const t = atHome() ? homeCtx() : active, out = [], ops = OPS();
     const raw = q.trim();
     if (!raw) {
       frecent().filter((p) => !samePath(p, t.cwd)).slice(0, 6)
-        .forEach((p) => out.push({ ico: '', cls: 'dir', folder: p, title: baseName(p), sub: shortPath(p), run: () => openFolder(p), alt: () => newTab({ cwd: p, ntp: false }) }));
+        .forEach((p) => out.push({ ico: '', cls: 'dir', folder: p, title: baseName(p), sub: shortPath(p), run: () => ops.open(p), alt: () => newTab({ cwd: p, ntp: false }) }));
       return out;
     }
     if (raw.startsWith('@')) {
@@ -623,22 +643,22 @@
     }
     if (raw.startsWith('?')) {
       const text = raw.slice(1).trim();
-      return [{ ico: '✦', cls: 'ask', title: text ? `Perguntar ao Claude: ${text}` : 'Digite a pergunta para o Claude', run: () => text && askClaude(text) }];
+      return [{ ico: '✦', cls: 'ask', title: text ? `Perguntar ao Claude: ${text}` : 'Digite a pergunta para o Claude', run: () => text && ops.ask(text) }];
     }
     if (looksLikePath(raw)) {
       const r = await neo.complete(t.cwd, raw, t.kind === 'wsl' ? t.distro || wslDefault : undefined);
-      if (r.exact) out.push({ ico: '', cls: 'dir', folder: r.exact, title: `Ir para ${baseName(r.exact)}`, sub: r.exact, run: () => openFolder(r.exact), alt: () => newTab({ cwd: r.exact, ntp: false }), fill: r.exact });
+      if (r.exact) out.push({ ico: '', cls: 'dir', folder: r.exact, title: `Ir para ${baseName(r.exact)}`, sub: r.exact, run: () => ops.open(r.exact), alt: () => newTab({ cwd: r.exact, ntp: false }), fill: r.exact });
       r.items.filter((it) => !samePath(it.path, r.exact))
-        .forEach((it) => out.push({ ico: '', cls: 'dir', folder: it.path, title: it.name, sub: it.path, run: () => openFolder(it.path), alt: () => newTab({ cwd: it.path, ntp: false }), fill: it.path + sepOf(it.path) }));
-      if (!out.length) out.push({ ico: '>_', cls: 'run', title: `Executar: ${raw}`, run: () => runCommand(raw) });
+        .forEach((it) => out.push({ ico: '', cls: 'dir', folder: it.path, title: it.name, sub: it.path, run: () => ops.open(it.path), alt: () => newTab({ cwd: it.path, ntp: false }), fill: it.path + sepOf(it.path) }));
+      if (!out.length) out.push({ ico: '>_', cls: 'run', title: `Executar: ${raw}`, run: () => ops.run(raw) });
       return out;
     }
-    out.push({ ico: '>_', cls: 'run', title: `Executar: ${raw}`, sub: t.kind === 'claude' ? 'em uma aba nova' : `em ${shortPath(t.cwd)}`, run: () => runCommand(raw), key: 'Enter' });
+    out.push({ ico: '>_', cls: 'run', title: `Executar: ${raw}`, sub: atHome() || t.kind === 'claude' ? 'em uma aba nova' : `em ${shortPath(t.cwd)}`, run: () => ops.run(raw), key: 'Enter' });
     const ql = raw.toLowerCase();
     envs.filter((e) => e.name.toLowerCase().includes(ql)).slice(0, 3).forEach((e) => out.push(envSug(e, raw)));
     const dirs = [...new Set([...bookmarks, ...frecent()])].filter((p) => baseName(p).toLowerCase().includes(ql)).slice(0, 4);
-    dirs.forEach((p) => out.push({ ico: '', cls: 'dir', folder: p, title: baseName(p), sub: shortPath(p), q: raw, run: () => openFolder(p), alt: () => newTab({ cwd: p, ntp: false }) }));
-    out.push({ ico: '✦', cls: 'ask', title: `Perguntar ao Claude: ${raw}`, sub: 'abre a sidebar com a pergunta', run: () => askClaude(raw) });
+    dirs.forEach((p) => out.push({ ico: '', cls: 'dir', folder: p, title: baseName(p), sub: shortPath(p), q: raw, run: () => ops.open(p), alt: () => newTab({ cwd: p, ntp: false }) }));
+    out.push({ ico: '✦', cls: 'ask', title: `Perguntar ao Claude: ${raw}`, sub: 'abre a sidebar com a pergunta', run: () => ops.ask(raw) });
     return out;
   }
 
@@ -684,7 +704,7 @@
 
   function startEditing() {
     omni.classList.add('editing');
-    omniInput.value = active?.cwd ? shortPath(active.cwd) : '';
+    omniInput.value = !homeVisible && active?.cwd ? shortPath(active.cwd) : '';
     omniInput.focus(); omniInput.select();
   }
   const stopEditing = () => omni.classList.remove('editing');
@@ -702,14 +722,43 @@
 
   /* =================== página de nova aba =================== */
   async function showNtp(tab) {
+    const page = await buildStart(tab);
+    tab.ntp = page;
+    tab.pane.appendChild(page);
+    refreshTab(tab); if (tab === active) { updateToolbar(); setTimeout(() => $('input', page)?.focus(), 30); }
+  }
+  // Página inicial (logo): mesma página, mas sem aba; abrir qualquer coisa cria uma aba nova.
+  async function showHome() {
+    homeVisible = true;
+    document.body.classList.add('at-home');
+    updateToolbar();
+    const page = await buildStart(null);
+    if (!homeVisible) return;
+    page.classList.add('home');
+    if (homeEl) homeEl.remove();
+    homeEl = page;
+    termsEl.appendChild(page);
+    setTimeout(() => $('input', page)?.focus(), 30);
+  }
+  function hideHome() {
+    if (!homeVisible) return;
+    homeVisible = false;
+    document.body.classList.remove('at-home');
+    if (homeEl) homeEl.remove();
+    homeEl = null;
+    updateToolbar();
+  }
+  // tab = aba da página de nova aba; null = página inicial.
+  async function buildStart(tab) {
+    const T = tab || homeCtx();
     const known = await neo.knownDirs();
     const page = h('div', 'ntp');
     const inner = h('div', 'ntp-inner');
 
     // Onde você está, como numa linha de prompt.
     const where = h('div', 'ntp-where');
-    where.append(h('span', 'w-shell', kindLabel(tab.kind, tab.distro)), h('span', 'w-path', shortPath(tab.cwd)));
-    neo.gitBranch(tab.cwd, tab.distro).then((b) => { if (b) where.appendChild(h('span', 'w-git', b)); });
+    where.append(h('span', 'w-shell', tab ? kindLabel(T.kind, T.distro) : 'início'), h('span', 'w-path', shortPath(T.cwd)));
+    neo.gitBranch(T.cwd, T.distro).then((b) => { if (b) where.appendChild(h('span', 'w-git', b)); });
 
     const search = h('div', 'ntp-search');
     const box = h('div', 'box');
@@ -750,7 +799,7 @@
         e.preventDefault();
         if (e.button === 0 && e.shiftKey) openInNewWindow({ envId: env.id });
         else if (e.button === 1 || e.ctrlKey) openEnv(env, { forceNew: true });
-        else if (e.button === 0) openEnv(env, { tab });
+        else if (e.button === 0) tab ? openEnv(env, { tab }) : openEnv(env, { forceNew: true });
       });
       list.appendChild(row);
     });
@@ -781,7 +830,7 @@
           e.preventDefault(); // não tira o foco do terminal
           if (e.button === 0 && e.shiftKey) openInNewWindow({ cwd: p, ...(isWslPath(p) ? { kind: 'wsl', distro: visits[p]?.d } : {}) });
           else if (e.button === 1 || e.ctrlKey) newTab({ cwd: p, ntp: false, ...(isWslPath(p) ? { kind: 'wsl', distro: visits[p]?.d } : {}) });
-          else if (e.button === 0) openFolder(p, { tab });
+          else if (e.button === 0) tab ? openFolder(p, { tab }) : homeOpen(p);
         });
         shelf.appendChild(item);
       });
@@ -796,8 +845,9 @@
       b.type = 'button';
       b.addEventListener('mousedown', (e) => {
         if (e.button !== 0) return; e.preventDefault();
-        const cwd = it.kind === 'wsl' ? (isWslPath(tab.cwd) ? tab.cwd : '~') : isWslPath(tab.cwd) ? home : tab.cwd;
-        hideNtp(tab, { respawnIn: cwd, kind: it.kind, distro: it.distro });
+        const cwd = it.kind === 'wsl' ? (isWslPath(T.cwd) ? T.cwd : '~') : isWslPath(T.cwd) ? home : T.cwd;
+        if (tab) hideNtp(tab, { respawnIn: cwd, kind: it.kind, distro: it.distro });
+        else newTab({ cwd, kind: it.kind, distro: it.distro, ntp: false });
       });
       starts.appendChild(b);
     });
@@ -807,10 +857,11 @@
     hint.innerHTML = '<span><kbd>Esc</kbd> terminal</span><span><kbd>Ctrl+L</kbd> barra de endereço</span><span><kbd>Alt+←</kbd> voltar</span><span><kbd>Ctrl+D</kbd> favoritar</span><span><kbd>&gt;</kbd> ações</span>';
     inner.appendChild(hint);
     page.appendChild(inner);
-    page.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('.omni-pop:not(.hidden)', page)) hideNtp(tab); });
-    tab.ntp = page;
-    tab.pane.appendChild(page);
-    refreshTab(tab); if (tab === active) { updateToolbar(); setTimeout(() => input.focus(), 30); }
+    page.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || $('.omni-pop:not(.hidden)', page)) return;
+      if (tab) hideNtp(tab); else if (active) { hideHome(); focusActive(); }
+    });
+    return page;
   }
   // Sai da página de nova aba. Se escolheu outra pasta ou shell, reinicia o processo lá:
   // nada foi exibido ainda, então não aparece nenhum "cd" digitado.
@@ -978,7 +1029,7 @@
   const envPop = $('#env-pop');
   function renderEnvButton() {
     const b = $('#env-btn');
-    const env = envById(active?.envId);
+    const env = envById(homeVisible ? null : active?.envId);
     b.classList.toggle('has-env', !!env);
     b.style.setProperty('--env', env ? env.color : 'var(--muted)');
     $('#env-btn-label').textContent = env ? env.name : 'Ambientes';
@@ -1056,6 +1107,7 @@
   }
   function toggleSidebar(force) {
     const show = force ?? sidebar.classList.contains('hidden');
+    if (show && !active) { newTab({ ntp: false }).then(() => toggleSidebar(true)); return; }
     sidebar.classList.toggle('hidden', !show);
     splitter.classList.toggle('hidden', !show);
     claudeBtn.classList.toggle('on', show);
@@ -1242,6 +1294,7 @@
     menu.classList.toggle('hidden');
     fitMenu(menu);
   }
+  $('#brand').addEventListener('click', () => showHome());
   $('#menu-btn').onclick = (e) => { e.stopPropagation(); openMenu(); };
   $('#new-tab').onclick = () => newTab();
   document.addEventListener('mousedown', (e) => { if (!e.target.closest('#menu') && !e.target.closest('#menu-btn')) menu.classList.add('hidden'); });
@@ -1249,7 +1302,7 @@
   /* =================== atalhos =================== */
   function isAppShortcut(e) {
     const k = e.key.toLowerCase();
-    if (e.altKey && !e.ctrlKey && ['arrowleft', 'arrowright', 'arrowup', 'd'].includes(k)) return true;
+    if (e.altKey && !e.ctrlKey && ['arrowleft', 'arrowright', 'arrowup', 'd', 'home'].includes(k)) return true;
     if (!e.ctrlKey) return k === 'f6';
     return ['t', 'w', 'tab', 'l', 'd', '=', '+', '-', '_', '0'].includes(k) || /^[1-9]$/.test(k) || (e.shiftKey && (k === 'b' || k === 'e' || k === 'n'));
   }
@@ -1260,7 +1313,7 @@
     const inField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
     if (inField && !e.ctrlKey && !e.altKey) return;
     e.preventDefault();
-    if (e.altKey) { if (k === 'arrowleft') goBack(); else if (k === 'arrowright') goForward(); else if (k === 'arrowup') goUp(); else startEditing(); return; }
+    if (e.altKey) { if (k === 'home') { showHome(); return; } if (k === 'arrowleft') goBack(); else if (k === 'arrowright') goForward(); else if (k === 'arrowup') goUp(); else startEditing(); return; }
     if (k === 'f6' || k === 'l') startEditing();
     else if (k === 't') e.shiftKey ? reopenClosed() : newTab();
     else if (k === 'w') closeTab(active);
@@ -1311,6 +1364,6 @@
       const env = init.envId && envById(init.envId);
       if (env) await openEnv(env, { forceNew: true });
       else await newTab({ kind: init.kind, distro: init.distro, cwd: init.cwd, ntp: !init.cwd });
-    } else await newTab();
-  }).then(() => { if (store.get('neo.sidebar', false)) toggleSidebar(true); });
+    } else await showHome(); // a janela abre na página inicial, sem iniciar nenhum terminal
+  }).then(() => { if (active && store.get('neo.sidebar', false)) toggleSidebar(true); });
 })();

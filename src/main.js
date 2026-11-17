@@ -105,7 +105,17 @@ function buildEnv() {
   return env;
 }
 
+// O Claude Code nunca grava a confiança na pasta pessoal (pergunta toda vez). Conversas abertas na
+// pasta pessoal usam uma pasta própria, onde a confiança fica gravada.
+const CLAUDE_HOME_DIR = path.join(os.homedir(), '.neo-cmd', 'claude');
+const samePathOs = (a, b) => (isWin ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b));
+function claudeDir(cwd) {
+  if (cwd && !samePathOs(cwd, os.homedir())) return cwd;
+  try { fs.mkdirSync(CLAUDE_HOME_DIR, { recursive: true }); return CLAUDE_HOME_DIR; } catch { return cwd; }
+}
+
 function spawnTerminal(wc, { id, kind, cwd, distro, cols, rows }) {
+  if (kind === 'claude') cwd = claudeDir(cwd || os.homedir());
   const startDir = kind !== 'wsl' && cwd && fs.existsSync(cwd) ? cwd : os.homedir();
   let file, args = [], typed = null;
 
@@ -307,6 +317,7 @@ function createWindow(from, at) {
   const size = from && !from.isDestroyed() ? from.getBounds() : { width: 1280, height: 780 };
   const win = new BrowserWindow({
     width: size.width, height: size.height, ...pos, minWidth: 640, minHeight: 400,
+    show: false, // aparece só quando já está desenhada (sem tela em branco)
     backgroundColor: '#0e0e11',
     title: 'Neo CMD',
     icon: path.join(__dirname, 'renderer', 'icon.png'),
@@ -319,6 +330,7 @@ function createWindow(from, at) {
     },
   });
   win.setMenuBarVisibility(false);
+  win.once('ready-to-show', () => win.show());
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   const wc = win.webContents, wcId = wc.id;
   win.on('closed', () => {

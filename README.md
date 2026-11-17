@@ -19,11 +19,11 @@
 
 Você já sabe usar um navegador. O Neo CMD leva esse jeito de navegar para o terminal: cada aba é um terminal, a barra de endereço mostra onde você está, e voltar, avançar e favoritar funcionam como no Chrome. O cmd e o PowerShell continuam lá, de verdade; o Neo CMD só muda a forma de chegar até eles.
 
-## Página de nova aba
+## Página inicial
 
-<p align="center"><img src="docs/images/ntp.png" alt="Página de nova aba: prompt, lista de ambientes e prateleira de pastas" width="900" /></p>
+<p align="center"><img src="docs/images/ntp.png" alt="Página inicial: prompt, lista de ambientes e prateleira de pastas" width="900" /></p>
 
-Toda aba nova começa num prompt: a pasta atual em cima e uma linha de comando grande, que aceita pasta, comando, `@ambiente` ou `?pergunta`. Abaixo, seus **ambientes de trabalho** em lista e uma **prateleira de pastas** (favoritas primeiro, depois as mais visitadas). Clique e o terminal já abre ali, sem nenhum `cd` digitado.
+O logo **neo** no canto é a página inicial (`Alt+Home`), e o app abre nela. É um prompt grande, que aceita pasta, comando, `@ambiente` ou `?pergunta`, com seus **ambientes de trabalho** e uma **prateleira de pastas** (favoritas primeiro, depois as mais visitadas). Nada abre até você escolher: ao abrir uma pasta, um ambiente ou digitar um comando, aí sim nasce uma aba nova, já no lugar certo.
 
 ## Ambientes de trabalho
 
@@ -94,6 +94,7 @@ As distros do WSL instaladas aparecem sozinhas como shells (`WSL · Ubuntu`, por
 |---|---|
 | Nova aba / fechar / reabrir fechada | `Ctrl+T` / `Ctrl+W` / `Ctrl+Shift+T` |
 | Nova janela | `Ctrl+Shift+N` |
+| Página inicial | `Alt+Home` ou clique no logo |
 | Alternar abas / ir para a aba N | `Ctrl+Tab` / `Ctrl+1…9` |
 | Barra de endereço | `Ctrl+L`, `Alt+D` ou `F6` |
 | Voltar / avançar / pasta acima | `Alt+←` / `Alt+→` / `Alt+↑` |

@@ -22,6 +22,10 @@ O app esconde esse texto no cmd até o primeiro prompt avisar a pasta atual (com
 
 É a primeira execução. Siga as instruções na própria sidebar. Isso só acontece uma vez.
 
+## O Claude pergunta "Accessing workspace… Is this a project you trust?"
+
+O Claude Code pergunta uma vez por pasta e lembra a resposta. A exceção é a pasta pessoal, cuja confiança ele nunca grava; por isso, na pasta pessoal o Neo CMD abre o Claude na pasta de conversas gerais (`~\.neo-cmd\claude`), que só pergunta na primeira vez. Escolha *Yes, I trust this folder* nas pastas em que você confia.
+
 ## A sidebar do Claude abriu na pasta errada
 
 A sessão é criada na primeira vez que a sidebar é aberta em cada aba, usando a pasta da aba naquele momento. Use **↻** na sidebar para reiniciar o Claude na pasta atual.
