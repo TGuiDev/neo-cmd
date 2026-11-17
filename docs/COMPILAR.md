@@ -47,7 +47,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-3. Acompanhe a execução na aba **Actions**. Ao terminar, o Release aparece em **Releases** com o instalador.
+3. Acompanhe a execução na aba **Actions**. A tag precisa ser igual à versão do `package.json` (`v` + versão); o workflow confere isso, porque o app instalado compara essa versão para decidir se há atualização. O Release recebe também o `latest.yml`, que o atualizador automático lê. Ao terminar, o Release aparece em **Releases** com o instalador.
 
 Também é possível rodar o workflow manualmente (**Actions → Build (Windows) → Run workflow**). Se preencher o campo *release_tag* (ex.: `v0.1.3`), o Release é criado com essa tag; se deixar em branco, os arquivos ficam como *artifact* da execução.
 

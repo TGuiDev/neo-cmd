@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld('neo', {
   isDir: (p) => ipcRenderer.invoke('fs:isdir', p),
   setTitlebar: (color, symbolColor) => ipcRenderer.send('app:titlebar', color, symbolColor),
   openExternal: (url) => ipcRenderer.send('app:open-external', url),
+  listFonts: () => ipcRenderer.invoke('fonts:list'),
+  updateGet: () => ipcRenderer.invoke('update:get'),
+  updateCheck: () => ipcRenderer.invoke('update:check'),
+  updateInstall: () => ipcRenderer.send('update:install'),
+  onUpdate: (cb) => ipcRenderer.on('update:state', (_e, st) => cb(st)),
   onData: (cb) => ipcRenderer.on('pty:data', (_e, id, data) => cb(id, data)),
   onExit: (cb) => ipcRenderer.on('pty:exit', (_e, id, code) => cb(id, code)),
 });

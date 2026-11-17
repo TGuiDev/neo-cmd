@@ -106,6 +106,14 @@ O Claude Code pede para confirmar se você confia na pasta, escolher um tema e f
 - `Ctrl +`, `Ctrl -` e `Ctrl 0` mudam a fonte.
 - Tema, fonte, shell padrão, favoritos, pastas visitadas e o estado da sidebar ficam salvos.
 
+## Fonte do terminal
+
+Menu **⋮** → *Fonte do terminal…* lista as fontes instaladas no seu computador (as monoespaçadas primeiro, com as Nerd Fonts marcadas), cada uma com uma prévia dos ícones de prompt. Escolha a mesma fonte do seu Windows Terminal para o prompt ficar idêntico. Mesmo sem Nerd Font instalada, o app inclui as fontes de ícones (atual e antiga) como reserva.
+
+## Atualizações
+
+O app instalado procura versões novas nos Releases do GitHub ao abrir e a cada 4 horas, e baixa em segundo plano. Quando a versão nova está pronta, aparece o botão **Atualizar para x.y.z** na barra de ferramentas; ao clicar, o Neo CMD fecha, instala e abre de novo. Se você não clicar, ela é instalada na próxima vez que fechar o app. Para procurar na hora: menu **⋮** → *Procurar atualizações* (o menu também mostra a versão atual).
+
 ## Copiar e colar
 
 - `Ctrl+C` copia quando há seleção; sem seleção, interrompe o comando.

@@ -145,21 +145,32 @@
   }
 
   /* =================== terminal =================== */
-  // Fontes com ícones (Nerd Fonts) instaladas vêm primeiro; a fonte de ícones embutida cobre o que faltar.
-  const TERM_FONT = ['"CaskaydiaCove Nerd Font Mono"', '"CaskaydiaMono Nerd Font Mono"', '"Cascadia Code NF"', '"Cascadia Mono NF"',
-    '"Cascadia Code"', '"Cascadia Mono"', '"JetBrains Mono"', 'Consolas', '"Symbols Nerd Font Mono"', '"Courier New"', 'monospace'].join(',');
-  // Quando a fonte de ícones termina de carregar, redesenha os terminais já abertos.
-  Promise.all([document.fonts.load('14px "Symbols Nerd Font Mono"', '\ue0b0'), document.fonts.load('14px "JetBrains Mono"')]).then(() => {
-    byPty.forEach(({ term }) => { term.options.fontFamily = TERM_FONT; try { term.refresh(0, term.rows - 1); } catch {} });
-  }).catch(() => {});
+  // A fonte escolhida pela pessoa vem primeiro; depois Nerd Fonts comuns; por fim as fontes de ícones
+  // embutidas (atual e antiga), que cobrem os ícones de prompt que faltarem.
+  let userFont = store.get('neo.termFont', '');
+  const termFont = () => [userFont && `"${userFont}"`, '"CaskaydiaCove Nerd Font Mono"', '"CaskaydiaMono Nerd Font Mono"', '"Cascadia Code NF"',
+    '"Cascadia Mono NF"', '"Cascadia Code"', '"Cascadia Mono"', '"JetBrains Mono"', 'Consolas', '"Symbols Nerd Font Mono"',
+    '"Symbols Nerd Font Legacy"', '"Courier New"', 'monospace'].filter(Boolean).join(',');
+  function applyTermFont() {
+    const f = termFont();
+    byPty.forEach(({ term }) => { term.options.fontFamily = f; try { term.refresh(0, term.rows - 1); } catch {} });
+    requestAnimationFrame(() => tabs.forEach((t) => { try { t.fit.fit(); } catch {} if (t.claude) try { t.claude.fit.fit(); } catch {} }));
+  }
+  // Quando as fontes embutidas terminam de carregar, redesenha os terminais já abertos.
+  Promise.all([document.fonts.load('14px "Symbols Nerd Font Mono"', '\ue0b0'), document.fonts.load('14px "Symbols Nerd Font Legacy"', '\uf7a1'),
+    document.fonts.load('14px "JetBrains Mono"')]).then(applyTermFont).catch(() => {});
   function makeTerm(container, getId, { onPrompt, onTitle, onInput } = {}) {
     const term = new Terminal({
-      theme: xtermTheme(), fontFamily: TERM_FONT,
-      fontSize, lineHeight: 1.2, cursorBlink: true, cursorStyle: 'bar', cursorWidth: 2, scrollback: 10000, allowProposedApi: true,
+      theme: xtermTheme(), fontFamily: termFont(),
+      // Altura de linha 1: as faixas e setas dos prompts (powerline) encostam umas nas outras, como no Windows Terminal.
+      fontSize, lineHeight: 1, cursorBlink: true, cursorStyle: 'bar', cursorWidth: 2, scrollback: 10000, allowProposedApi: true,
     });
     const fit = new FitAddon.FitAddon();
     term.loadAddon(fit);
     term.loadAddon(new WebLinksAddon.WebLinksAddon((_e, url) => neo.openExternal(url)));
+    // Larguras de caracteres do Unicode 11 (emoji, ícones), as mesmas que o Windows usa: evita prompt desalinhado.
+    term.loadAddon(new Unicode11Addon.Unicode11Addon());
+    term.unicode.activeVersion = '11';
     term.open(container);
     term.onData((d) => { onInput?.(d); neo.write(getId(), d); });
     if (onTitle) term.onTitleChange(onTitle);
@@ -973,6 +984,111 @@
     window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
   });
 
+  /* =================== fonte do terminal =================== */
+  const MONO_HINT = /mono|code|consol|courier|nerd|\bnf\b|cascadia|caskaydia|fira|hack|meslo|iosevka|menlo|source code|terminal|fixed|lucida console|inconsolata|victor|jetbrains|ubuntu mono|dejavu sans mono|roboto mono|sf mono|monaspace|geist mono/i;
+  const NERD = /nerd|\bnf\b/i;
+  async function openFontPicker() {
+    const all = await neo.listFonts();
+    const bg = h('div', 'modal-bg');
+    const m = h('div', 'modal');
+    const head = h('div', 'modal-head');
+    const titles = h('div');
+    titles.append(h('div', 'm-title', 'Fonte do terminal'),
+      h('div', 'm-sub', 'Use a mesma Nerd Font do seu Windows Terminal para os ícones do prompt aparecerem iguais.'));
+    head.appendChild(titles);
+    const body = h('div', 'modal-body');
+    const search = h('input', 'font-search'); search.placeholder = 'Procurar fonte instalada'; search.spellcheck = false;
+    const showAll = h('label', 'check-row');
+    const chk = h('input'); chk.type = 'checkbox';
+    showAll.append(chk, h('span', null, 'Mostrar todas as fontes, não só as monoespaçadas'));
+    const list = h('div', 'font-list');
+    const sample = 'neo \ue0b0 ~/projetos \ue0a0 main \uf00c 12:30';
+    const render = () => {
+      list.innerHTML = '';
+      const q = search.value.trim().toLowerCase();
+      const fonts = all.filter((f) => (chk.checked || MONO_HINT.test(f)) && f.toLowerCase().includes(q))
+        .sort((a, b) => (NERD.test(b) - NERD.test(a)) || a.localeCompare(b));
+      const rows = [{ name: '', label: 'Padrão do Neo CMD' }, ...fonts.map((f) => ({ name: f, label: f }))];
+      rows.forEach(({ name, label }) => {
+        const row = h('div', 'font-row' + (name === userFont ? ' on' : ''));
+        const smp = h('div', 'fr-sample', sample);
+        smp.style.fontFamily = [name && `"${name}"`, '"Symbols Nerd Font Mono"', '"Symbols Nerd Font Legacy"', 'monospace'].filter(Boolean).join(',');
+        row.append(h('div', 'fr-name', label), smp);
+        if (NERD.test(name)) row.appendChild(h('span', 'fr-tag', 'Nerd Font'));
+        row.addEventListener('click', () => {
+          userFont = name; store.set('neo.termFont', name); applyTermFont();
+          list.querySelectorAll('.font-row').forEach((r) => r.classList.toggle('on', r === row));
+        });
+        list.appendChild(row);
+      });
+      if (!fonts.length) list.appendChild(h('div', 'font-empty', q ? `Nenhuma fonte instalada com "${search.value.trim()}".` : 'Nenhuma fonte monoespaçada encontrada. Marque "Mostrar todas as fontes".'));
+    };
+    search.addEventListener('input', render);
+    chk.addEventListener('change', render);
+    body.append(search, showAll, list);
+    const foot = h('div', 'modal-foot');
+    const done = h('button', 'btn primary', 'Concluir'); done.type = 'button';
+    foot.append(h('span', 'grow'), done);
+    m.append(head, body, foot);
+    bg.appendChild(m);
+    document.body.appendChild(bg);
+    render();
+    setTimeout(() => search.focus(), 30);
+    const close = () => { bg.classList.add('leaving'); setTimeout(() => bg.remove(), 150); focusActive(); };
+    done.onclick = close;
+    bg.addEventListener('mousedown', (e) => { if (e.target === bg) close(); });
+    m.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); close(); } });
+  }
+
+  /* =================== atualizações =================== */
+  let update = { state: 'idle' };
+  const updateBtn = $('#update-btn');
+  function renderUpdate(st) {
+    const was = update.state;
+    update = st || update;
+    updateBtn.classList.toggle('hidden', update.state !== 'ready');
+    if (update.state === 'ready') {
+      updateBtn.textContent = `Atualizar para ${update.version}`;
+      if (was !== 'ready') toast(`Versão ${update.version} baixada. Clique em "Atualizar para ${update.version}" para reiniciar nela.`);
+    }
+  }
+  function confirmUpdate() {
+    const bg = h('div', 'modal-bg');
+    const m = h('div', 'modal');
+    const head = h('div', 'modal-head');
+    const titles = h('div');
+    titles.append(h('div', 'm-title', `Atualizar para a versão ${update.version}?`),
+      h('div', 'm-sub', 'O Neo CMD fecha, instala a versão nova e abre de novo. Os terminais abertos serão encerrados.'));
+    head.appendChild(titles);
+    const foot = h('div', 'modal-foot');
+    const later = h('button', 'btn ghost', 'Depois'); later.type = 'button';
+    const now = h('button', 'btn primary', 'Reiniciar e atualizar'); now.type = 'button';
+    foot.append(h('span', 'grow'), later, now);
+    m.append(head, foot); bg.appendChild(m); document.body.appendChild(bg);
+    const close = () => { bg.remove(); focusActive(); };
+    later.onclick = close;
+    now.onclick = () => neo.updateInstall();
+    bg.addEventListener('mousedown', (e) => { if (e.target === bg) close(); });
+    m.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') close(); });
+    setTimeout(() => now.focus(), 30);
+  }
+  async function checkUpdates() {
+    const st = await neo.updateCheck();
+    renderUpdate(st);
+    const msg = {
+      dev: 'As atualizações automáticas só funcionam no app instalado.',
+      latest: `Você já está na versão mais recente (${st.current}).`,
+      downloading: `Baixando a versão ${st.version}…`,
+      ready: `A versão ${st.version} está pronta para instalar.`,
+      checking: 'Procurando atualizações…',
+      error: `Não foi possível procurar atualizações: ${st.message || 'erro desconhecido'}`,
+    }[st.state];
+    if (msg) toast(msg);
+  }
+  updateBtn.onclick = confirmUpdate;
+  neo.onUpdate(renderUpdate);
+  neo.updateGet().then(renderUpdate).catch(() => {});
+
   /* =================== tema, fonte, menu =================== */
   function applyTheme(id) {
     themeId = id; store.set('neo.theme', id);
@@ -1025,7 +1141,13 @@
     add('Aumentar a fonte', () => setZoom(fontSize + 1), { kbd: 'Ctrl +' });
     add('Diminuir a fonte', () => setZoom(fontSize - 1), { kbd: 'Ctrl −' });
     add('Restaurar a fonte', () => setZoom(14), { kbd: 'Ctrl 0' });
+    add('Fonte do terminal…', openFontPicker, { kbd: userFont ? userFont.slice(0, 18) : 'padrão' });
     add('Página de nova aba', () => { ntpEnabled = !ntpEnabled; store.set('neo.ntp', ntpEnabled); toast(ntpEnabled ? 'Página de nova aba ligada' : 'Página de nova aba desligada'); }, { check: ntpEnabled });
+    sep();
+    const ver = h('div', 'ver', `Neo CMD ${update.current || ''}` + (update.state === 'downloading' ? ` · baixando ${update.version} (${update.percent || 0}%)` : ''));
+    menu.appendChild(ver);
+    if (update.state === 'ready') add(`Atualizar para ${update.version}`, confirmUpdate);
+    else add('Procurar atualizações', checkUpdates);
     menu.classList.toggle('hidden');
   }
   $('#menu-btn').onclick = (e) => { e.stopPropagation(); openMenu(); };

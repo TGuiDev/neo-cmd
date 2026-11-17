@@ -33,6 +33,15 @@ jobs:
         run: npm ci
       - name: Garantir binários nativos do Windows
         run: npm install --no-save @lydell/node-pty-win32-x64 @anthropic-ai/claude-code-win32-x64
+      - name: Conferir a versão
+        if: inputs.release_tag != ''
+        shell: bash
+        run: |
+          v="v$(node -p "require('./package.json').version")"
+          if [ "$v" != "${{ inputs.release_tag }}" ]; then
+            echo "A tag (${{ inputs.release_tag }}) precisa ser igual à versão do package.json ($v); senão a atualização automática não funciona."
+            exit 1
+          fi
       - name: Gerar o instalador
         run: npx electron-builder --win nsis --x64 --publish never
       - name: Guardar o instalador como artifact
@@ -48,5 +57,8 @@ jobs:
           tag_name: ${{ inputs.release_tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: Neo CMD ${{ inputs.release_tag || github.ref_name }}
+          # latest.yml diz ao app instalado qual é a versão nova (atualização automática).
           files: |
             dist/*.exe
+            dist/latest.yml
+            dist/*.blockmap

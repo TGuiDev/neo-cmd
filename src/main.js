@@ -4,6 +4,7 @@ const os = require('os');
 const fs = require('fs');
 const { execFile } = require('child_process');
 const pty = require('@lydell/node-pty');
+const { autoUpdater } = require('electron-updater');
 
 const isWin = process.platform === 'win32';
 const terminals = new Map(); // id -> pty
@@ -198,6 +199,59 @@ ipcMain.handle('fs:known', () => {
 });
 ipcMain.handle('fs:isdir', (_e, p) => isDir(expand(p)));
 
+/* ---------- fontes instaladas (para escolher a fonte do terminal) ---------- */
+const FONT_STYLE = /\s+(Regular|Bold|Italic|Oblique|Light|ExtraLight|Extra Light|UltraLight|Thin|Medium|SemiBold|Semi Bold|DemiBold|ExtraBold|Extra Bold|Black|Heavy|Condensed|SemiCondensed|Book|Retina)\b/gi;
+const cleanFamily = (n) => n.replace(FONT_STYLE, '').replace(/\s+/g, ' ').trim();
+ipcMain.handle('fonts:list', () => new Promise((resolve) => {
+  const names = new Set();
+  if (isWin) {
+    // Fontes do sistema (HKLM) e as instaladas só para o usuário (HKCU), onde costumam ficar as Nerd Fonts.
+    const keys = ['HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts', 'HKCU\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts'];
+    let pending = keys.length;
+    keys.forEach((k) => execFile('reg', ['query', k], { windowsHide: true, timeout: 6000, maxBuffer: 16e6 }, (err, out) => {
+      if (!err) String(out).split(/\r?\n/).forEach((line) => {
+        const m = line.match(/^\s+(.+?)\s{4}REG_(?:SZ|EXPAND_SZ)\s{4}/);
+        if (m) m[1].replace(/\s*\((TrueType|OpenType|All res)\)\s*$/i, '').split(/\s*&\s*/).forEach((n) => names.add(cleanFamily(n)));
+      });
+      if (--pending === 0) resolve([...names].filter(Boolean).sort((a, b) => a.localeCompare(b)));
+    }));
+  } else {
+    execFile('fc-list', [':', 'family'], { timeout: 6000, maxBuffer: 16e6 }, (err, out) => {
+      if (!err) String(out).split('\n').forEach((l) => { const n = l.split(',')[0].trim(); if (n) names.add(n); });
+      resolve([...names].sort((a, b) => a.localeCompare(b)));
+    });
+  }
+}));
+
+/* ---------- atualizações (Releases do GitHub) ---------- */
+let updateState = { state: 'idle' };
+function sendUpdate(patch) {
+  updateState = { ...updateState, ...patch, current: app.getVersion() };
+  if (win && !win.isDestroyed()) win.webContents.send('update:state', updateState);
+}
+function setupUpdates() {
+  if (!app.isPackaged) { updateState = { state: 'dev' }; return; } // só no app instalado
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('checking-for-update', () => sendUpdate({ state: 'checking' }));
+  autoUpdater.on('update-not-available', () => sendUpdate({ state: 'latest' }));
+  autoUpdater.on('update-available', (i) => sendUpdate({ state: 'downloading', version: i.version, percent: 0 }));
+  autoUpdater.on('download-progress', (p) => sendUpdate({ state: 'downloading', percent: Math.round(p.percent || 0) }));
+  autoUpdater.on('update-downloaded', (i) => sendUpdate({ state: 'ready', version: i.version }));
+  autoUpdater.on('error', (e) => sendUpdate({ state: 'error', message: String((e && e.message) || e).split('\n')[0].slice(0, 200) }));
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  setTimeout(check, 8000);
+  setInterval(check, 4 * 60 * 60 * 1000);
+}
+ipcMain.handle('update:get', () => ({ ...updateState, current: app.getVersion() }));
+ipcMain.handle('update:check', async () => {
+  if (!app.isPackaged) return { state: 'dev', current: app.getVersion() };
+  if (updateState.state === 'downloading' || updateState.state === 'ready') return { ...updateState, current: app.getVersion() };
+  try { await autoUpdater.checkForUpdates(); } catch (e) { sendUpdate({ state: 'error', message: String((e && e.message) || e).split('\n')[0].slice(0, 200) }); }
+  return { ...updateState, current: app.getVersion() };
+});
+ipcMain.on('update:install', () => { if (updateState.state === 'ready') autoUpdater.quitAndInstall(false, true); });
+
 ipcMain.on('app:open-external', (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
 ipcMain.on('app:titlebar', (_e, color, symbolColor) => {
   try { win?.setTitleBarOverlay({ color, symbolColor, height: 40 }); } catch {}
@@ -226,5 +280,5 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => { createWindow(); setupUpdates(); });
 app.on('window-all-closed', () => app.quit());

@@ -9,6 +9,8 @@
 @font-face { font-family:"JetBrains Mono"; src:url("fonts/JetBrainsMono-SemiBold.woff2") format("woff2"); font-weight:600; font-display:block; }
 /* Ícones de Nerd Font (Clink, oh-my-posh, Starship): reserva quando a fonte principal não tem o ícone. */
 @font-face { font-family:"Symbols Nerd Font Mono"; src:url("fonts/SymbolsNerdFontMono-Regular.ttf") format("truetype"); font-display:block; }
+/* Ícones antigos (Nerd Fonts 2.x), que muitos temas de prompt ainda usam. */
+@font-face { font-family:"Symbols Nerd Font Legacy"; src:url("fonts/SymbolsNerdFontMono-Legacy.ttf") format("truetype"); font-display:block; }
 
 /* ---------- temas ---------- */
 :root, :root[data-theme="neo"] {
@@ -319,3 +321,21 @@ kbd { font:500 11px var(--mono); color:var(--muted); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition:none !important; animation-duration:.01ms !important; }
 }
+
+/* ---------- atualização ---------- */
+.update-btn { flex:none; height:30px; padding:0 12px; margin-left:6px; border-radius:8px; border:1px solid var(--accent);
+  background:color-mix(in srgb,var(--accent) 14%,transparent); color:var(--text); font-size:12.5px; white-space:nowrap; }
+.update-btn:hover { background:color-mix(in srgb,var(--accent) 24%,transparent); }
+.menu .ver { padding:6px 10px 2px; font:11.5px var(--mono); color:var(--muted); }
+
+/* ---------- escolher a fonte do terminal ---------- */
+.font-search { margin-bottom:2px; }
+.font-list { max-height:300px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:var(--field); }
+.font-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border-bottom:1px solid var(--line); cursor:pointer; }
+.font-row:last-child { border-bottom:0; }
+.font-row:hover { background:var(--hover); }
+.font-row.on { background:color-mix(in srgb,var(--accent) 14%,transparent); }
+.font-row .fr-name { flex:none; width:190px; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.font-row .fr-sample { flex:1; min-width:0; font-size:14px; overflow:hidden; white-space:nowrap; color:var(--text); }
+.font-row .fr-tag { flex:none; font:500 10.5px var(--mono); color:var(--accent); }
+.font-empty { padding:14px 12px; color:var(--muted); font-size:12.5px; }

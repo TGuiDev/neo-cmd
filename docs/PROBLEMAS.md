@@ -36,7 +36,15 @@ Alguns atalhos de navegador são reservados pelo app, incluindo `Ctrl+L` (barra 
 
 ## Aparecem quadrados no lugar de ícones do prompt
 
-Prompts do Clink, oh-my-posh e Starship usam ícones de Nerd Font. O Neo CMD já inclui uma fonte só com esses ícones (Symbols Nerd Font), usada quando a fonte principal não tem o ícone. Se você tem uma Nerd Font instalada (por exemplo, CaskaydiaCove Nerd Font ou Cascadia Code NF), ela é usada primeiro. Se ainda aparecer algum quadrado, abra uma issue com uma captura de tela.
+Prompts do Clink, oh-my-posh e Starship usam ícones de Nerd Font. O Neo CMD inclui as fontes de ícones da Nerd Font (a atual e a antiga, 2.x, cujos ícones muitos temas ainda usam) como reserva. Para o prompt ficar idêntico ao do Windows Terminal, escolha a mesma fonte em menu **⋮** → *Fonte do terminal…*.
+
+## O prompt aparece desalinhado ou com faixas cortadas
+
+O terminal usa altura de linha 1 e as larguras de caracteres do Unicode 11 (as mesmas do Windows), para as faixas e setas do powerline encostarem umas nas outras. Se ainda houver desalinhamento, escolha a fonte do seu Windows Terminal em *Fonte do terminal…* e abra uma issue com uma captura de tela se o problema continuar.
+
+## A atualização automática não aparece
+
+Ela só funciona no app instalado pelo `NeoCMD-Setup-x.y.z.exe` (não ao rodar com `npm start`). Use menu **⋮** → *Procurar atualizações* para ver a mensagem de erro, se houver.
 
 ## A barra de endereço não acompanha o `cd` / voltar fica desativado
 
